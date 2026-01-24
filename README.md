@@ -3,11 +3,11 @@
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Open Source](https://img.shields.io/badge/Open%20Source-❤️-red.svg)](https://github.com/qwen-team/qwen-mcp-tool)
+[![Open Source](https://img.shields.io/badge/Open%20Source-❤️-red.svg)](https://github.com/utenadev/qwencode-mcp-server)
 
 </div>
 
-> A Model Context Protocol (MCP) server that allows AI assistants to interact with QwenCode. It enables the AI to leverage the power of Qwen's capabilities for analysis, especially with large files and codebases using the `@` syntax for direction.
+> A Model Context Protocol (MCP) server that allows AI assistants to interact with Qwen AI models. It enables the AI to leverage the power of Qwen's capabilities for analysis, especially with large files and codebases.
 
 - Ask Qwen natural questions through other AI assistants!
 - Leverage Qwen's powerful analysis capabilities directly in your AI workflows
@@ -18,16 +18,27 @@
 
 ```
 qwencode-mcp-server/
+├── .gitignore
 ├── LICENSE
 ├── package.json
 ├── README.ja.md
 ├── README.md
-├── scripts
 ├── src
 │   ├── constants.ts
 │   ├── index.ts
 │   ├── tools
+│   │   ├── ask-qwen.tool.ts
+│   │   ├── index.ts
+│   │   ├── registry.ts
+│   │   └── simple-tools.ts
 │   └── utils
+│       ├── commandExecutor.ts
+│       ├── logger.ts
+│       ├── progressManager.ts
+│       └── qwenExecutor.ts
+├── test
+│   ├── registry.test.js
+│   └── tools.test.js
 └── tsconfig.json
 ```
 
@@ -36,8 +47,9 @@ qwencode-mcp-server/
 Before using this tool, ensure you have:
 
 1. **[Node.js](https://nodejs.org/)** (v16.0.0 or higher)
-2. **[QwenCode](https://github.com/QwenLM/Qwen)** installed and configured
-
+2. **Qwen CLI access** - This tool requires the `qwen` command to be available on your system. You may need to:
+   - Install the Qwen CLI tool
+   - Configure API keys or authentication as required by Qwen
 
 ### Installation
 
@@ -136,7 +148,7 @@ If you installed globally, use this configuration instead:
     }
   }
 }
-}
+```
 
 Alternatively, if you prefer using bunx:
 
@@ -148,7 +160,6 @@ Alternatively, if you prefer using bunx:
       "args": ["github:utenadev/qwencode-mcp-server"]
     }
   }
-}
 }
 ```
 
@@ -164,7 +175,7 @@ After updating the configuration, restart your terminal session.
 ## Example Workflow
 
 - **Natural language**: "use qwen to explain index.html", "understand the massive project using qwen", "ask qwen to search for latest news"
-- **Claude Code**: Type `/qwen` and commands will populate in Claude Code's interface.
+- **Claude Code**: The MCP tools are available through the `ask-qwen` tool when the MCP server is active.
 
 ## Usage Examples
 
@@ -180,7 +191,7 @@ After updating the configuration, restart your terminal session.
 - `use qwen to explain div centering`
 - `ask qwen about best practices for React development related to @file_im_confused_about`
 
-### Tools (for the AI)
+### Available Tools
 
 These tools are designed to be used by the AI assistant.
 
@@ -190,16 +201,6 @@ These tools are designed to be used by the AI assistant.
 
 - **`Ping`**: A simple test tool that echoes back a message.
 - **`Help`**: Shows the QwenCode help text.
-
-### Slash Commands (for the User)
-
-You can use these commands directly in Claude Code's interface (compatibility with other clients has not been tested).
-
-- **/analyze**: Analyzes files or directories using Qwen, or asks general questions.
-  - **`prompt`** (required): The analysis prompt. Use `@` syntax to include files (e.g., `/analyze prompt:@src/ summarize this directory`) or ask general questions (e.g., `/analyze prompt:Please search for the latest news stories`).
-- **/help**: Displays the QwenCode help information.
-- **/ping**: Tests the connection to the server.
-  - **`message`** (optional): A message to echo back.
 
 ## Contributing
 

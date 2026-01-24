@@ -3,11 +3,11 @@
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Open Source](https://img.shields.io/badge/Open%20Source-❤️-red.svg)](https://github.com/qwen-team/qwen-mcp-tool)
+[![Open Source](https://img.shields.io/badge/Open%20Source-❤️-red.svg)](https://github.com/utenadev/qwencode-mcp-server)
 
 </div>
 
-> QwenCode と対話するためのモデルコンテキストプロトコル（MCP）サーバー。AIが `@` 構文を使用して大規模なファイルやコードベースを直接分析できるように、Qwen の強力な機能を活用できます。
+> Qwen AI モデルと対話するためのモデルコンテキストプロトコル（MCP）サーバー。AIが `@` 構文を使用して大規模なファイルやコードベースを直接分析できるように、Qwen の強力な機能を活用できます。
 
 - 他の AI アシスタント経由で Qwen に自然言語で質問
 - AI ワークフロー内で Qwen の強力な分析機能を直接利用
@@ -18,16 +18,27 @@
 
 ```
 qwencode-mcp-server/
+├── .gitignore
 ├── LICENSE
 ├── package.json
 ├── README.ja.md
 ├── README.md
-├── scripts
 ├── src
 │   ├── constants.ts
 │   ├── index.ts
 │   ├── tools
+│   │   ├── ask-qwen.tool.ts
+│   │   ├── index.ts
+│   │   ├── registry.ts
+│   │   └── simple-tools.ts
 │   └── utils
+│       ├── commandExecutor.ts
+│       ├── logger.ts
+│       ├── progressManager.ts
+│       └── qwenExecutor.ts
+├── test
+│   ├── registry.test.js
+│   └── tools.test.js
 └── tsconfig.json
 ```
 
@@ -36,8 +47,9 @@ qwencode-mcp-server/
 このツールを使用する前に、以下のものがインストールされていることを確認してください：
 
 1. **[Node.js](https://nodejs.org/)** (v16.0.0 以上)
-2. **[QwenCode](https://github.com/QwenLM/Qwen)** がインストールされ、設定されていること
-
+2. **Qwen CLI アクセス** - このツールには `qwen` コマンドが必要です。以下の準備が必要です：
+   - Qwen CLI ツールのインストール
+   - API キーや認証の設定（Qwen で必要な場合）
 
 ### インストール
 
@@ -136,7 +148,7 @@ Claude Desktop 設定ファイルに以下を追加：
     }
   }
 }
-}
+```
 
 または、bunxを使用する場合：
 
@@ -148,7 +160,6 @@ Claude Desktop 設定ファイルに以下を追加：
       "args": ["github:utenadev/qwencode-mcp-server"]
     }
   }
-}
 }
 ```
 
@@ -164,7 +175,7 @@ Claude Desktop 設定ファイルに以下を追加：
 ## 例ワークフロー
 
 - **自然言語**: "index.html を説明するために qwen を使用", "巨大なプロジェクトを qwen を使って理解する", "最新ニュースを探すために qwen に依頼"
-- **Claude Code**: `/qwen` と入力すると、コマンドが Claude Code のインターフェースに表示されます。
+- **Claude Code**: MCP サーバーが有効な場合、`ask-qwen` ツールが利用可能です。
 
 ## 使用例
 
@@ -180,26 +191,16 @@ Claude Desktop 設定ファイルに以下を追加：
 - `div のセンタリングを説明するために qwen を使用`
 - `@file_im_confused_about に関する React 開発のベストプラクティスについて qwen に質問`
 
-### ツール（AI 向け）
+### 利用可能なツール
 
 これらのツールは AI アシスタントが使用するように設計されています。
 
-- **`ask-qwen`**: Qwen AI に視点を求める。一般的な質問やファイルの複雑な分析に使用可能。
+- **`ask-qwen`**: Qwen AI に質問または分析を依頼します。一般的な質問やファイルの複雑な分析に使用可能。
   - **`prompt`** （必須）: 分析リクエスト。`@` 構文を使用してファイルまたはディレクトリ参照を含めることができます（例: `@src/main.js これを説明`）または一般的な質問（例: `最新ニュースを検索してください`）。
   - **`model`** （オプション）: 使用する Qwen モデル。デフォルトは `qwen-max`。
 
 - **`Ping`**: 簡単なテストツールでメッセージをエコーします。
 - **`Help`**: QwenCode ヘルプテキストを表示します。
-
-### スラッシュコマンド（ユーザー向け）
-
-これらのコマンドは Claude Code のインターフェースで直接使用できます（他のクライアントとの互換性はテストされていません）。
-
-- **/analyze**: ファイルやディレクトリを Qwen で分析するか、一般的な質問に回答。
-  - **`prompt`** （必須）: 分析プロンプト。`@` 構文を使用してファイルを含めます（例: `/analyze prompt:@src/ このディレクトリを要約`）または一般的な質問（例: `/analyze prompt:最新ニュースを検索してください`）。
-- **/help**: QwenCode ヘルプ情報を表示。
-- **/ping**: サーバーへの接続をテスト。
-  - **`message`** （オプション）: エコーするメッセージ。
 
 ## 貢献
 
