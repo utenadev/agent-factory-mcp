@@ -11,7 +11,7 @@ import type { ToolConfig } from "../utils/configLoader.js";
  * This enables zero-code registration of CLI tools as MCP tools.
  */
 export class GenericCliProvider extends BaseCliProvider {
-  id: string;
+  readonly id: string;
   #metadata: CliToolMetadata;
   #config: ToolConfig;
   #helpOutput: string | null = null;
@@ -31,67 +31,67 @@ export class GenericCliProvider extends BaseCliProvider {
 
   /**
    * Create a GenericCliProvider by parsing the command's --help output.
-   *
    * @param config - Tool configuration
    * @returns Provider instance or null if command is not available
    */
   static async create(config: ToolConfig): Promise<GenericCliProvider | null> {
     const { command } = config;
 
-    // Check if command is available
-    const isAvailable = await GenericCliProvider.isCommandAvailable(command);
-    if (!isAvailable) {
+    if (!await this.isCommandAvailable(command)) {
       return null;
     }
 
-    // Fetch --help output
-    const helpOutput = await GenericCliProvider.fetchHelpOutput(command);
-
-    // Parse help output into metadata
-    const metadata = HelpParser.parse(command, helpOutput);
-
-    // Apply configuration overrides
-    const overriddenMetadata = GenericCliProvider.applyConfigOverrides(
-      metadata,
+    const helpOutput = await this.fetchHelpOutput(command);
+    const metadata = this.applyConfigOverrides(
+      HelpParser.parse(command, helpOutput),
       config
     );
 
-    return new GenericCliProvider(
-      command,
-      overriddenMetadata,
-      config,
-      helpOutput
-    );
+    return new GenericCliProvider(command, metadata, config, helpOutput);
   }
 
   /**
    * Check if a command is available in the system PATH.
    */
   static async isCommandAvailable(command: string): Promise<boolean> {
+    return (
+      await this.tryWhichCheck(command) ||
+      await this.tryVersionCheck(command)
+    );
+  }
+
+  /**
+   * Check command availability using which/where.
+   */
+  private static async tryWhichCheck(command: string): Promise<boolean> {
     try {
-      // Try multiple methods for better compatibility
       const checkCommand = process.platform === "win32" ? "where" : "which";
       await executeCommand(checkCommand, [command], undefined, 5000);
       return true;
     } catch {
-      // Fallback: try executing the command with --version or --help
-      try {
-        await executeCommand(command, ["--version"], undefined, 3000);
-        return true;
-      } catch {
-        return false;
-      }
+      return false;
     }
   }
 
   /**
-   * Fetch the --help output from a command.
+   * Check command availability by executing with --version flag.
+   */
+  private static async tryVersionCheck(command: string): Promise<boolean> {
+    try {
+      await executeCommand(command, ["--version"], undefined, 3000);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Fetch the --help output from a command, with fallback to -h.
    */
   static async fetchHelpOutput(command: string): Promise<string> {
     try {
       return await executeCommand(command, ["--help"], undefined, 10000);
     } catch (error) {
-      // If --help fails, try -h
       try {
         return await executeCommand(command, ["-h"], undefined, 10000);
       } catch {
@@ -109,54 +109,51 @@ export class GenericCliProvider extends BaseCliProvider {
     metadata: CliToolMetadata,
     config: ToolConfig
   ): CliToolMetadata {
-    const overridden: CliToolMetadata = { ...metadata };
-
-    // Override tool name with alias
-    if (config.alias) {
-      overridden.toolName = config.alias;
-    }
-
-    // Override description
-    if (config.description) {
-      overridden.description = config.description;
-    }
-
-    // Override system prompt
-    if (config.systemPrompt) {
-      overridden.systemPrompt = config.systemPrompt;
-    }
-
-    // Apply default args as option defaults
-    if (config.defaultArgs) {
-      overridden.options = overridden.options.map((opt) => {
-        const defaultValue = config.defaultArgs![opt.name];
-        if (defaultValue !== undefined) {
-          return { ...opt, defaultValue };
-        }
-        return opt;
-      });
-    }
-
-    return overridden;
+    return {
+      ...metadata,
+      ...this.getStringOverrides(config),
+      options: this.applyDefaultArgs(metadata.options, config.defaultArgs),
+    };
   }
 
   /**
-   * Get the metadata for this tool.
+   * Extract string-based overrides from config.
    */
+  private static getStringOverrides(config: ToolConfig): Partial<CliToolMetadata> {
+    const overrides: Partial<CliToolMetadata> = {};
+    if (config.alias) overrides.toolName = config.alias;
+    if (config.description) overrides.description = config.description;
+    if (config.systemPrompt) overrides.systemPrompt = config.systemPrompt;
+    return overrides;
+  }
+
+  /**
+   * Apply default args to options.
+   */
+  private static applyDefaultArgs(
+    options: CliToolMetadata["options"],
+    defaultArgs: Record<string, any> | undefined
+  ): CliToolMetadata["options"] {
+    if (!defaultArgs) return options;
+
+    return options.map((opt) =>
+      defaultArgs[opt.name] !== undefined
+        ? { ...opt, defaultValue: defaultArgs[opt.name] }
+        : opt
+    );
+  }
+
+  /** Get the metadata for this tool. */
   getMetadata(): CliToolMetadata {
     return this.#metadata;
   }
 
-  /**
-   * Get the original configuration.
-   */
+  /** Get the original configuration. */
   getConfig(): ToolConfig {
     return this.#config;
   }
 
-  /**
-   * Get the cached help output (useful for debugging).
-   */
+  /** Get the cached help output (useful for debugging). */
   getHelpOutput(): string | null {
     return this.#helpOutput;
   }
@@ -168,11 +165,7 @@ export class GenericCliProvider extends BaseCliProvider {
     args: Record<string, any>,
     onProgress?: (output: string) => void
   ): Promise<string> {
-    // Apply default args from config
     const effectiveArgs = { ...this.#config.defaultArgs, ...args };
-
-    // For now, we use the base execute method
-    // In the future, we could inject environment variables here
     return super.execute(effectiveArgs, onProgress);
   }
 }
