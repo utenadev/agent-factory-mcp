@@ -48,7 +48,11 @@ Usage examples:
 - ask-qwen: Ask Qwen AI a question or analyze files
 - Ping: Test the connection to the server
 - register_cli_tool: Register 'ollama' to add ollama tools
-- Help: Show this help information`;
+- Help: Show this help information
+
+Configuration:
+- CLI args: npx agent-factory-mcp qwen gemini aider
+- Config file: ai-tools.json for detailed configuration with system prompts`;
   },
 };
 
@@ -56,6 +60,7 @@ const registerToolArgsSchema = z.object({
   command: z.string().describe("The CLI command to register (e.g., 'ollama', 'git')"),
   alias: z.string().optional().describe("Optional alias for the tool (defaults to 'ask-{command}')"),
   description: z.string().optional().describe("Custom description for the tool"),
+  systemPrompt: z.string().optional().describe("System prompt for AI agent persona configuration"),
   persist: z.boolean().optional().describe("Whether to save to ai-tools.json (default: false)"),
 });
 
@@ -68,7 +73,7 @@ export const registerCliToolTool: UnifiedTool = {
   },
   category: "utility" as const,
   execute: async args => {
-    const { command, alias, description, persist } = args;
+    const { command, alias, description, systemPrompt, persist } = args;
 
     try {
       // Validate command is a string
@@ -89,6 +94,9 @@ export const registerCliToolTool: UnifiedTool = {
       }
       if (description !== undefined && typeof description === "string") {
         toolConfig.description = description;
+      }
+      if (systemPrompt !== undefined && typeof systemPrompt === "string") {
+        toolConfig.systemPrompt = systemPrompt;
       }
 
       // Create the provider

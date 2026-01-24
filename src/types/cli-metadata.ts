@@ -75,4 +75,7 @@ export interface CliToolMetadata {
 
   /** For subcommand tools: the subcommand this metadata represents (if any) */
   subcommand?: string;
+
+  /** Optional system prompt for AI agent persona configuration */
+  systemPrompt?: string;
 }

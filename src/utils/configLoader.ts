@@ -38,6 +38,7 @@ const ToolConfigSchema = z.object({
   defaultArgs: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
   alias: z.string().optional(),
   description: z.string().optional(),
+  systemPrompt: z.string().optional(),
   env: z.record(z.string()).optional(),
 });
 

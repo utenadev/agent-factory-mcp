@@ -25,7 +25,7 @@ export const askQwenTool: UnifiedTool = {
   prompt: {
     description: "Execute 'qwen -p <prompt>' to get Qwen AI's response.",
   },
-  category: "qwen",
+  category: "ai",
   execute: async (args, onProgress) => {
     const { prompt, model } = args;
     if (!prompt?.trim()) {

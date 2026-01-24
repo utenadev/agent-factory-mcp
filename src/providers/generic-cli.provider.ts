@@ -69,12 +69,18 @@ export class GenericCliProvider extends BaseCliProvider {
    */
   static async isCommandAvailable(command: string): Promise<boolean> {
     try {
-      // Use command -v on Unix/Linux/macOS or where on Windows
-      const checkCommand = process.platform === "win32" ? "where" : "command";
-      await executeCommand(checkCommand, ["-v", command], undefined, 5000);
+      // Try multiple methods for better compatibility
+      const checkCommand = process.platform === "win32" ? "where" : "which";
+      await executeCommand(checkCommand, [command], undefined, 5000);
       return true;
     } catch {
-      return false;
+      // Fallback: try executing the command with --version or --help
+      try {
+        await executeCommand(command, ["--version"], undefined, 3000);
+        return true;
+      } catch {
+        return false;
+      }
     }
   }
 
@@ -113,6 +119,11 @@ export class GenericCliProvider extends BaseCliProvider {
     // Override description
     if (config.description) {
       overridden.description = config.description;
+    }
+
+    // Override system prompt
+    if (config.systemPrompt) {
+      overridden.systemPrompt = config.systemPrompt;
     }
 
     // Apply default args as option defaults

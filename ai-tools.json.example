@@ -7,6 +7,20 @@
       "enabled": true,
       "description": "Qwen AI assistant for code analysis and generation",
       "alias": "ask-qwen"
+    },
+    {
+      "command": "qwen",
+      "enabled": true,
+      "description": "Code review expert focusing on security and performance",
+      "alias": "code-reviewer",
+      "systemPrompt": "You are a senior code reviewer. Focus on security vulnerabilities, performance issues, and maintainability. Provide specific, actionable feedback."
+    },
+    {
+      "command": "qwen",
+      "enabled": true,
+      "description": "Technical documentation specialist",
+      "alias": "doc-writer",
+      "systemPrompt": "You write clear, concise technical documentation for developers. Use simple language and organize content logically."
     }
   ]
 }

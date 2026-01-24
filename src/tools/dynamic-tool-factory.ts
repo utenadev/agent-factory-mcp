@@ -8,10 +8,16 @@ export class DynamicToolFactory {
   static createTool(provider: AIProvider): UnifiedTool {
     const metadata = provider.getMetadata();
 
+    // Build description with system prompt if present
+    let toolDescription = metadata.description;
+    if (metadata.systemPrompt) {
+      toolDescription += `\n\nSystem Prompt: ${metadata.systemPrompt}`;
+    }
+
     return {
       name: metadata.toolName,
-      description: metadata.description,
-      category: "qwen", // To be generalized later to 'ai' or provider.id
+      description: toolDescription,
+      category: "ai", // Generalized from 'qwen' to support any AI provider
       zodSchema: this.createZodSchema(metadata),
       prompt: {
         description: `Execute '${metadata.command}' to get AI response.`,

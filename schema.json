@@ -55,6 +55,10 @@
           "description": {
             "type": "string"
           },
+          "systemPrompt": {
+            "type": "string",
+            "description": "System prompt for AI agent persona configuration"
+          },
           "env": {
             "type": "object",
             "additionalProperties": {
