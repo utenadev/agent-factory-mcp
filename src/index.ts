@@ -86,7 +86,7 @@ async function sendProgressNotification(
 function startProgressUpdates(
   operationName: string,
   progressToken?: string | number
-) {
+): { interval: NodeJS.Timeout; progressToken?: string | number } {
   isProcessing = true;
   currentOperationName = operationName;
   latestOutput = ""; // Reset latest output
@@ -137,7 +137,12 @@ function startProgressUpdates(
     }
   }, PROTOCOL.KEEPALIVE_INTERVAL); // Every 25 seconds
 
-  return { interval: progressInterval, progressToken };
+  // Return result without undefined progressToken property
+  const result: { interval: NodeJS.Timeout; progressToken?: string | number } = { interval: progressInterval };
+  if (progressToken !== undefined) {
+    result.progressToken = progressToken;
+  }
+  return result;
 }
 
 function stopProgressUpdates(
@@ -253,6 +258,11 @@ server.setRequestHandler(GetPromptRequestSchema, async (request: GetPromptReques
 // Start the server
 async function main() {
   Logger.debug("init qwencode-mcp-server");
-  const transport = new StdioServerTransport(); await server.connect(transport);
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
   Logger.debug("qwencode-mcp-server listening on stdio");
-} main().catch((error) => {Logger.error("Fatal error:", error); process.exit(1); });
+}
+main().catch((error) => {
+  Logger.error("Fatal error:", error);
+  process.exit(1);
+});

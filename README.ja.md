@@ -39,10 +39,38 @@ qwencode-mcp-server/
 2. **[QwenCode](https://github.com/QwenLM/Qwen)** がインストールされ、設定されていること
 
 
-### 1行でのセットアップ
+### インストール
+
+このツールを使用するには、まずインストールする必要があります。これはまだnpmパッケージとして公開されていないため、GitHubから直接インストールできます：
 
 ```bash
-claude mcp add qwen -- npx -y qwen-mcp-tool
+npm install -g github:utenadev/qwencode-mcp-server
+```
+
+または、インストールせずにnpxで直接使用することもできます：
+
+```bash
+npx github:utenadev/qwencode-mcp-server
+```
+
+または、bunxを使用（Bunがインストールされている場合）：
+
+```bash
+bunx github:utenadev/qwencode-mcp-server
+```
+
+### 1行でのセットアップ
+
+インストール後、ClaudeにMCPサーバーを登録します：
+
+```bash
+claude mcp add qwen -- npx github:utenadev/qwencode-mcp-server
+```
+
+または、bunxを使用：
+
+```bash
+claude mcp add qwen -- bunx github:utenadev/qwencode-mcp-server
 ```
 
 ### インストールの確認
@@ -59,7 +87,15 @@ Claude Desktop ですでに設定済みの場合：
 ```json
 "qwen": {
   "command": "npx",
-  "args": ["-y", "qwen-mcp-tool"]
+  "args": ["github:utenadev/qwencode-mcp-server"]
+}
+```
+
+または、bunxを使用：
+```json
+"qwen": {
+  "command": "bunx",
+  "args": ["github:utenadev/qwencode-mcp-server"]
 }
 ```
 
@@ -81,7 +117,7 @@ Claude Desktop 設定ファイルに以下を追加：
   "mcpServers": {
     "qwen": {
       "command": "npx",
-      "args": ["-y", "qwen-mcp-tool"]
+      "args": ["-y", "qwencode-mcp-server"]
     }
   }
 }
@@ -95,7 +131,21 @@ Claude Desktop 設定ファイルに以下を追加：
 {
   "mcpServers": {
     "qwen": {
-      "command": "qwencode-mcp"
+      "command": "npx",
+      "args": ["github:utenadev/qwencode-mcp-server"]
+    }
+  }
+}
+}
+
+または、bunxを使用する場合：
+
+```json
+{
+  "mcpServers": {
+    "qwen": {
+      "command": "bunx",
+      "args": ["github:utenadev/qwencode-mcp-server"]
     }
   }
 }

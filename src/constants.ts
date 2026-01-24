@@ -62,7 +62,7 @@ export const QWENCODE = {
   },
   // Default values
   DEFAULTS: {
-    MODEL: "default", // Fallback model used when no specific model is provided
+    MODEL: "qwen-max", // Fallback model used when no specific model is provided
     BOOLEAN_TRUE: "true",
     BOOLEAN_FALSE: "false",
   },
@@ -72,7 +72,7 @@ export const QWENCODE = {
 export interface ToolArguments {
   prompt?: string;
   model?: string;
-  message?: string; // For Ping tool -- Un-used.
+  message?: string; // For Ping tool
 
   // --> new tool
   methodology?: string; // Brainstorming framework to use

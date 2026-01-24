@@ -39,10 +39,38 @@ Before using this tool, ensure you have:
 2. **[QwenCode](https://github.com/QwenLM/Qwen)** installed and configured
 
 
-### One-Line Setup
+### Installation
+
+To use this tool, you need to install it first. Since this is not published as an npm package yet, you can install it directly from GitHub:
 
 ```bash
-claude mcp add qwen -- npx -y qwen-mcp-tool
+npm install -g github:utenadev/qwencode-mcp-server
+```
+
+Or use it directly with npx without installing:
+
+```bash
+npx github:utenadev/qwencode-mcp-server
+```
+
+Or use it with bunx (if you have Bun installed):
+
+```bash
+bunx github:utenadev/qwencode-mcp-server
+```
+
+### One-Line Setup
+
+Once installed, register the MCP server with Claude:
+
+```bash
+claude mcp add qwen -- npx github:utenadev/qwencode-mcp-server
+```
+
+Or using bunx:
+
+```bash
+claude mcp add qwen -- bunx github:utenadev/qwencode-mcp-server
 ```
 
 ### Verify Installation
@@ -59,7 +87,15 @@ If you already have it configured in Claude Desktop:
 ```json
 "qwen": {
   "command": "npx",
-  "args": ["-y", "qwen-mcp-tool"]
+  "args": ["github:utenadev/qwencode-mcp-server"]
+}
+```
+
+Or using bunx:
+```json
+"qwen": {
+  "command": "bunx",
+  "args": ["github:utenadev/qwencode-mcp-server"]
 }
 ```
 
@@ -81,7 +117,7 @@ Add this configuration to your Claude Desktop config file:
   "mcpServers": {
     "qwen": {
       "command": "npx",
-      "args": ["-y", "qwen-mcp-tool"]
+      "args": ["-y", "qwencode-mcp-server"]
     }
   }
 }
@@ -95,7 +131,21 @@ If you installed globally, use this configuration instead:
 {
   "mcpServers": {
     "qwen": {
-      "command": "qwencode-mcp"
+      "command": "npx",
+      "args": ["github:utenadev/qwencode-mcp-server"]
+    }
+  }
+}
+}
+
+Alternatively, if you prefer using bunx:
+
+```json
+{
+  "mcpServers": {
+    "qwen": {
+      "command": "bunx",
+      "args": ["github:utenadev/qwencode-mcp-server"]
     }
   }
 }
