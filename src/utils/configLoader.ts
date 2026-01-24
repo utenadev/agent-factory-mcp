@@ -1,4 +1,4 @@
-import { readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
@@ -10,11 +10,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 /**
  * Configuration file names to search for, in order of priority.
  */
-const CONFIG_FILE_NAMES = [
-  "ai-tools.json",
-  ".qwencoderc.json",
-  "qwencode.config.json",
-] as const;
+const CONFIG_FILE_NAMES = ["ai-tools.json", ".qwencoderc.json", "qwencode.config.json"] as const;
 
 /**
  * Default configuration version.
@@ -131,9 +127,7 @@ export class ConfigLoader {
    * Format Zod validation errors into a readable string.
    */
   private static formatValidationErrors(error: z.ZodError): string {
-    return error.errors
-      .map((e) => `${e.path.join(".")}: ${e.message}`)
-      .join(", ");
+    return error.errors.map(e => `${e.path.join(".")}: ${e.message}`).join(", ");
   }
 
   /**
@@ -168,10 +162,7 @@ export class ConfigLoader {
    */
   private static resolveTargetPath(customPath: string): string {
     if (customPath) return customPath;
-    return (
-      this.findConfigFile(process.cwd()) ||
-      resolve(process.cwd(), DEFAULT_CONFIG_FILENAME)
-    );
+    return this.findConfigFile(process.cwd()) || resolve(process.cwd(), DEFAULT_CONFIG_FILENAME);
   }
 
   // ========================================================================
@@ -237,10 +228,7 @@ export class ConfigLoader {
    * @param configPath - Path where to save the config (default: ai-tools.json in cwd)
    * @returns Success status and error message if any
    */
-  static save(
-    config: ToolsConfig,
-    configPath: string = ""
-  ): OperationResult {
+  static save(config: ToolsConfig, configPath = ""): OperationResult {
     const targetPath = configPath || resolve(process.cwd(), DEFAULT_CONFIG_FILENAME);
 
     try {
@@ -261,10 +249,7 @@ export class ConfigLoader {
    * @param configPath - Path to the config file (default: ai-tools.json)
    * @returns Success status and error message if any
    */
-  static addTool(
-    toolConfig: ToolConfig,
-    configPath: string = ""
-  ): OperationResult {
+  static addTool(toolConfig: ToolConfig, configPath = ""): OperationResult {
     const targetPath = this.resolveTargetPath(configPath);
 
     try {
@@ -282,13 +267,8 @@ export class ConfigLoader {
   /**
    * Add or update a tool in the configuration.
    */
-  private static upsertTool(
-    config: ToolsConfig,
-    toolConfig: ToolConfig
-  ): void {
-    const existingIndex = config.tools.findIndex(
-      (t) => t.command === toolConfig.command
-    );
+  private static upsertTool(config: ToolsConfig, toolConfig: ToolConfig): void {
+    const existingIndex = config.tools.findIndex(t => t.command === toolConfig.command);
 
     if (existingIndex >= 0) {
       config.tools[existingIndex] = toolConfig;
@@ -307,26 +287,55 @@ export class ConfigLoader {
    * @param configs - Tool configurations to resolve
    * @returns Resolved configurations with availability status
    */
-  static async resolveTools(
-    configs: ToolConfig[]
-  ): Promise<ResolvedToolConfig[]> {
-    const { GenericCliProvider } = await import(
-      "../providers/generic-cli.provider.js"
-    );
+  static async resolveTools(configs: ToolConfig[]): Promise<ResolvedToolConfig[]> {
+    const { GenericCliProvider } = await import("../providers/generic-cli.provider.js");
 
     const resolved: ResolvedToolConfig[] = [];
 
     for (const config of configs) {
       if (config.enabled === false) continue;
 
-      const isAvailable =
-        await GenericCliProvider.isCommandAvailable(config.command);
+      const isAvailable = await GenericCliProvider.isCommandAvailable(config.command);
       const toolName = config.alias || `ask-${config.command}`;
 
       resolved.push({ config, toolName, isAvailable });
     }
 
     return resolved;
+  }
+
+  /**
+   * Auto-discover compatible CLI tools from PATH and add them to the configuration.
+   *
+   * @param configPath - Path to the config file (default: ai-tools.json)
+   * @returns Success status and error message if any
+   */
+  static async autoDiscoverAndAddTools(configPath = ""): Promise<OperationResult> {
+    const { discoverCompatibleTools } = await import("./autoDiscovery.js");
+    const targetPath = this.resolveTargetPath(configPath);
+
+    try {
+      const existingConfig = this.loadOrCreate(targetPath);
+      const discoveredTools = await discoverCompatibleTools();
+
+      for (const metadata of discoveredTools) {
+        const toolConfig: ToolConfig = {
+          command: metadata.command,
+          alias: metadata.toolName,
+          description: metadata.description,
+          providerType: "cli-auto",
+          enabled: true,
+        };
+        this.upsertTool(existingConfig, toolConfig);
+      }
+
+      return this.save(existingConfig, targetPath);
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to auto-discover tools: ${error}`,
+      };
+    }
   }
 
   // ========================================================================

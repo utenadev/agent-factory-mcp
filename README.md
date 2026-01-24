@@ -11,7 +11,8 @@
 
 ## Features
 
-- **Auto-Discovery**: Automatically parse CLI `--help` output to generate tool metadata
+- **Auto-Discovery**: Automatically scan `PATH` for CLI tools and register them as MCP tools
+- **Help Output Parsing**: Parse CLI `--help` output to generate tool metadata
 - **Zero-Code Registration**: Register tools via config file or command-line arguments
 - **Persona Support**: Configure system prompts to create specialized AI agents
 - **Multi-Provider**: Use multiple AI tools simultaneously (Qwen, Gemini, Aider, etc.)
@@ -126,7 +127,7 @@ npx agent-factory-mcp qwen gemini aider
 
 ### Method 2: Configuration File
 
-Create `ai-tools.json` in your project root:
+Create `ai-tools.json` in your project root. The server will also **auto-discover** compatible CLI tools from your `PATH` and add them to this file on startup:
 
 ```json
 {
@@ -248,6 +249,9 @@ bun run lint
 
 # Format
 bun run format
+
+# Run auto-discovery manually
+bun run auto-discover
 ```
 
 ## Project Structure

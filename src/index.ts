@@ -3,33 +3,31 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  ListPromptsRequestSchema,
-  GetPromptRequestSchema,
   type CallToolRequest,
-  type ListToolsRequest,
-  type ListPromptsRequest,
-  type GetPromptRequest,
-  type Tool,
-  type Prompt,
-  type GetPromptResult,
+  CallToolRequestSchema,
   type CallToolResult,
+  type GetPromptRequest,
+  GetPromptRequestSchema,
+  type GetPromptResult,
+  ListPromptsRequestSchema,
+  ListToolsRequestSchema,
+  type Prompt,
+  type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
+import type { ToolArguments } from "./constants.js";
+import { GenericCliProvider } from "./providers/generic-cli.provider.js";
+import {
+  executeTool,
+  getPromptDefinitions,
+  getPromptMessage,
+  getToolDefinitions,
+  toolExists,
+} from "./tools/index.js";
+import { registerProvider } from "./tools/registry.js";
+import { ConfigLoader } from "./utils/configLoader.js";
+import type { ToolConfig } from "./utils/configLoader.js";
 import { Logger } from "./utils/logger.js";
 import { ProgressManager } from "./utils/progressManager.js";
-import { ConfigLoader } from "./utils/configLoader.js";
-import { registerProvider } from "./tools/registry.js";
-import { GenericCliProvider } from "./providers/generic-cli.provider.js";
-import type { ToolArguments } from "./constants.js";
-import type { ToolConfig } from "./utils/configLoader.js";
-import {
-  getToolDefinitions,
-  getPromptDefinitions,
-  executeTool,
-  toolExists,
-  getPromptMessage,
-} from "./tools/index.js";
 
 // ============================================================================
 // Server Configuration
@@ -158,10 +156,7 @@ interface ToolRegistrationResult {
  * Register a single tool from its configuration.
  * Returns true if successful, false otherwise.
  */
-async function registerToolFromConfig(
-  config: ToolConfig,
-  toolName: string
-): Promise<boolean> {
+async function registerToolFromConfig(config: ToolConfig, toolName: string): Promise<boolean> {
   try {
     const provider = await GenericCliProvider.create(config);
 
@@ -239,8 +234,11 @@ async function initializeFromConfig(): Promise<void> {
   const loadResult = ConfigLoader.load();
 
   if (!loadResult.configPath) {
-    Logger.debug("No configuration file found, using default tools only");
-    return;
+    Logger.debug("No configuration file found, running auto-discovery...");
+    const discoveryResult = await ConfigLoader.autoDiscoverAndAddTools();
+    if (!discoveryResult.success) {
+      Logger.error("Auto-discovery failed:", discoveryResult.error);
+    }
   }
 
   if (loadResult.error) {
@@ -248,13 +246,13 @@ async function initializeFromConfig(): Promise<void> {
     return;
   }
 
-  Logger.debug(`Loaded configuration from ${loadResult.configPath}`);
+  Logger.debug(`Loaded configuration from ${loadResult.configPath || "auto-discovery"}`);
 
   const config = loadResult.config!;
   const tools = config.tools || [];
 
   if (tools.length === 0) {
-    Logger.debug("Configuration contains no tools");
+    Logger.debug("No tools found in configuration or auto-discovery");
     return;
   }
 
@@ -287,9 +285,7 @@ async function registerToolsFromConfig(tools: ToolConfig[]): Promise<void> {
     }
   }
 
-  Logger.info(
-    `Configuration loaded: ${registeredCount} tools registered, ${skippedCount} skipped`
-  );
+  Logger.info(`Configuration loaded: ${registeredCount} tools registered, ${skippedCount} skipped`);
 }
 
 // ============================================================================

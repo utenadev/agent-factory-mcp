@@ -71,9 +71,6 @@ Agent Factory MCP is a **universal Model Context Protocol (MCP) server** that dy
 
 ## COMMANDS
 ```bash
-# Install dependencies
-bun install
-
 # Build
 bun run build
 
@@ -86,17 +83,14 @@ bun run start
 # Test
 bun test
 
-# Type check
-bun run type-check
+# Lint (TypeScript type check)
+bun run lint
 
-# Lint (Biome)
-bun biome lint src
+# Format
+bun run format
 
-# Format (Biome)
-bun biome format src --write
-
-# Run all checks (type-check, lint, test)
-task check
+# Run auto-discovery manually
+bun run auto-discover
 ```
 
 ---
@@ -106,3 +100,4 @@ task check
 - **Entry Point**: `src/index.ts` initializes the MCP server and registers providers.
 - **Dynamic Tools**: Tools are generated at runtime from `CliToolMetadata`.
 - **Progress Updates**: Long-running tools (e.g., Qwen) send progress updates every 25 seconds to prevent MCP client timeouts.
+- **Auto-Discovery**: On startup, the server scans `PATH` for compatible CLI tools and auto-registers them in `ai-tools.json`.
