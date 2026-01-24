@@ -1,0 +1,16 @@
+Usage: ollama [flags]
+
+Large language models
+
+Flags:
+      --serve       Serve the model (default: false)
+  -h, --help        help for ollama
+
+Commands:
+  serve       Start ollama
+  run         Run a model
+  list        List models
+  show        Show model information
+  cp          Copy a model
+  rm          Remove a model
+  help        Help about any command

@@ -10,6 +10,7 @@ export class QwenProvider extends BaseCliProvider {
       toolName: "ask-qwen",
       description: "Execute Qwen AI to get responses. Supports model selection.",
       command: QWENCODE.COMMANDS.QWEN,
+      toolType: "simple",
       argument: {
         name: "prompt",
         description:

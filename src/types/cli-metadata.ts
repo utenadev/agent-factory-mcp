@@ -1,9 +1,7 @@
-
-
 /**
  * Defines the type of value an option accepts.
  */
-export type OptionType = "string" | "number" | "boolean";
+export type OptionType = "string" | "number" | "boolean" | "file";
 
 /**
  * Defines a single CLI option (flag).
@@ -30,17 +28,51 @@ export interface CliArgument {
 }
 
 /**
+ * Defines a subcommand of a CLI tool.
+ * For example, "run" in "ollama run" or "commit" in "git commit".
+ */
+export interface SubcommandDefinition {
+  /** The subcommand name (e.g., "run", "commit") */
+  name: string;
+
+  /** Description of what this subcommand does */
+  description: string;
+
+  /** Whether this subcommand takes additional arguments */
+  hasArguments?: boolean;
+}
+
+/**
+ * Tool type classification.
+ */
+export type ToolType = "simple" | "with-subcommands";
+
+/**
  * Metadata describing a CLI tool's capabilities.
  * This is the blueprint for generating the MCP tool.
  */
 export interface CliToolMetadata {
-  toolName: string; // Name of the MCP tool (e.g., "ask-qwen")
-  description: string; // Description for the MCP tool
-  command: string; // The base CLI command (e.g., "qwen")
+  /** Name of the MCP tool (e.g., "ask-qwen") */
+  toolName: string;
 
-  // Positional argument (usually just one for the prompt)
+  /** Description for the MCP tool */
+  description: string;
+
+  /** The base CLI command (e.g., "qwen", "ollama") */
+  command: string;
+
+  /** Tool type classification */
+  toolType: ToolType;
+
+  /** For subcommand tools: the list of available subcommands */
+  subcommands?: SubcommandDefinition[];
+
+  /** Positional argument (usually just one for the prompt) */
   argument?: CliArgument;
 
-  // Key-value options
+  /** Key-value options */
   options: CliOption[];
+
+  /** For subcommand tools: the subcommand this metadata represents (if any) */
+  subcommand?: string;
 }

@@ -1,4 +1,11 @@
-import type { CliToolMetadata, CliOption, CliArgument, OptionType } from "../types/cli-metadata.js";
+import type {
+  CliToolMetadata,
+  CliOption,
+  CliArgument,
+  OptionType,
+  SubcommandDefinition,
+  ToolType,
+} from "../types/cli-metadata.js";
 
 /**
  * Parser options for customizing help output parsing.
@@ -33,6 +40,15 @@ interface ParseResult {
   positionals: CliArgument[];
   options: ParsedOption[];
   hasSubcommands: boolean;
+  subcommands: SubcommandInfo[];
+}
+
+/**
+ * Information about a detected subcommand.
+ */
+interface SubcommandInfo {
+  name: string;
+  description: string;
 }
 
 /**
@@ -44,6 +60,7 @@ interface ParseResult {
  * - Choices: [choices: "a", "b", "c"]
  * - Defaults: [default: false]
  * - Deprecated: [deprecated: ...]
+ * - Subcommands: Detects and parses Commands sections
  */
 export class HelpParser {
   /**
@@ -105,16 +122,32 @@ export class HelpParser {
   ): CliToolMetadata {
     const result = this.parseHelpOutput(helpOutput, options);
 
-    // Convert to CliToolMetadata format
-    // For tools with subcommands, we'll use a generic metadata structure
-    // that can be extended in Phase 3
+    // Determine tool type
+    const toolType: ToolType = result.hasSubcommands
+      ? "with-subcommands"
+      : "simple";
+
+    // Convert subcommands to the expected format
+    const subcommands: SubcommandDefinition[] = result.subcommands.map(
+      (sc) => ({
+        name: sc.name,
+        description: sc.description,
+        hasArguments: true, // Assume subcommands take arguments
+      })
+    );
 
     const baseMetadata: CliToolMetadata = {
       toolName: `ask-${command}`,
       description: result.description,
       command: command,
+      toolType,
       options: result.options.map((opt) => this.parsedOptionToCliOption(opt)),
     };
+
+    // Add subcommands if present
+    if (subcommands.length > 0) {
+      baseMetadata.subcommands = subcommands;
+    }
 
     // Add positional argument if found
     if (result.positionals.length > 0) {
@@ -139,6 +172,7 @@ export class HelpParser {
       positionals: [],
       options: [],
       hasSubcommands: false,
+      subcommands: [],
     };
 
     let currentSection: "description" | "positionals" | "options" | "commands" =
@@ -190,7 +224,10 @@ export class HelpParser {
           break;
 
         case "commands":
-          // Subcommands handling is deferred to Phase 3
+          const subcommand = this.parseSubcommand(line);
+          if (subcommand) {
+            result.subcommands.push(subcommand);
+          }
           break;
       }
     }
@@ -235,6 +272,79 @@ export class HelpParser {
       description: trimmedDescription,
       type: "string",
       required: false, // Commander.js positionals are typically optional
+    };
+  }
+
+  /**
+   * Parse a subcommand line from the Commands section.
+   * Format can be:
+   * - "command   Description" (simple)
+   * - "command sub   Description" (commander.js style with base command repeated)
+   * - "subcommand   Description" (when base command is implied)
+   */
+  private static parseSubcommand(
+    line: string
+  ): SubcommandInfo | null {
+    // Remove leading whitespace for analysis
+    const trimmed = line.trim();
+
+    // Filter out section headers and divider lines
+    if (!trimmed || trimmed.startsWith("---") || /^Commands|Options|Arguments|Positionals:/.test(trimmed)) {
+      return null;
+    }
+
+    // Skip lines that look like usage patterns with brackets only (first line is often the default command)
+    if (/^\w+\s+\[.*?\]\s*$/.test(trimmed)) {
+      return null;
+    }
+
+    // Try to match: "base_command subcommand   Description"
+    // The description typically starts after a few spaces
+    const parts = trimmed.split(/\s{2,}/); // Split on 2+ spaces
+
+    if (parts.length < 2) {
+      return null;
+    }
+
+    // First part might be "command sub" or just "sub"
+    const firstPart = parts[0]?.trim();
+    const description = parts[1]?.trim();
+
+    if (!firstPart || !description) {
+      return null;
+    }
+
+    // Extract subcommand name from first part
+    const words = firstPart.split(/\s+/);
+
+    let subcommandName: string | undefined;
+
+    if (words.length === 1) {
+      // Simple case: just the subcommand name
+      subcommandName = words[0];
+    } else if (words.length >= 2) {
+      // "base_command subcommand" format - use the second word
+      subcommandName = words[1];
+    } else {
+      return null;
+    }
+
+    if (!subcommandName) {
+      return null;
+    }
+
+    if (!subcommandName) {
+      return null;
+    }
+
+    // Skip if this looks like a file extension or technical term
+    if (/^\.[a-z]+$/.test(subcommandName) || /^[<>[\]]+$/.test(subcommandName)) {
+      return null;
+    }
+
+    return {
+      name: subcommandName,
+      description,
     };
   }
 
@@ -354,6 +464,7 @@ export class HelpParser {
     flag: string
   ): OptionType {
     const lowerDesc = description.toLowerCase();
+    const lowerFlag = flag.toLowerCase();
 
     // Boolean indicators
     if (
@@ -367,8 +478,17 @@ export class HelpParser {
     }
 
     // Number indicators
-    if (/\d+/.test(flag) || /port|count|num|timeout|limit/.test(flag)) {
+    if (/\d+/.test(flag) || /port|count|num|timeout|limit/.test(lowerFlag)) {
       return "number";
+    }
+
+    // File/path indicators
+    if (
+      /file|path|dir|directory|config|output|input/i.test(lowerFlag) ||
+      /file|path|directory|folder/i.test(lowerDesc) ||
+      /\.(json|yaml|yml|txt|md|toml|conf|cfg)$/.test(description)
+    ) {
+      return "file";
     }
 
     // Default to string
