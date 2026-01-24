@@ -1,4 +1,4 @@
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
@@ -178,6 +178,93 @@ export class ConfigLoader {
     }
 
     return resolved;
+  }
+
+  /**
+   * Save configuration to a JSON file.
+   *
+   * @param config - The configuration to save
+   * @param configPath - Path where to save the config (default: ai-tools.json in cwd)
+   * @returns Success status and error message if any
+   */
+  static save(
+    config: ToolsConfig,
+    configPath: string = ""
+  ): { success: boolean; error: string | null } {
+    const targetPath =
+      configPath || resolve(process.cwd(), "ai-tools.json");
+
+    try {
+      // Ensure directory exists
+      const dir = resolve(targetPath, "..");
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
+
+      // Write config with pretty formatting
+      const content = JSON.stringify(config, null, 2);
+      writeFileSync(targetPath, content, "utf-8");
+
+      return { success: true, error: null };
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to save config: ${error}`,
+      };
+    }
+  }
+
+  /**
+   * Add a tool configuration to an existing config file.
+   *
+   * @param toolConfig - The tool configuration to add
+   * @param configPath - Path to the config file (default: ai-tools.json)
+   * @returns Success status and error message if any
+   */
+  static addTool(
+    toolConfig: ToolConfig,
+    configPath: string = ""
+  ): { success: boolean; error: string | null } {
+    const targetPath =
+      configPath || this.findConfigFile(process.cwd()) ||
+      resolve(process.cwd(), "ai-tools.json");
+
+    try {
+      // Load existing config or create new one
+      let existingConfig: ToolsConfig;
+
+      if (existsSync(targetPath)) {
+        const content = readFileSync(targetPath, "utf-8");
+        const parsed = JSON.parse(content);
+        existingConfig = ToolsConfigSchema.parse(parsed);
+      } else {
+        existingConfig = {
+          version: "1.0",
+          tools: [],
+        };
+      }
+
+      // Check if tool already exists
+      const existingIndex = existingConfig.tools.findIndex(
+        (t) => t.command === toolConfig.command
+      );
+
+      if (existingIndex >= 0) {
+        // Update existing tool
+        existingConfig.tools[existingIndex] = toolConfig;
+      } else {
+        // Add new tool
+        existingConfig.tools.push(toolConfig);
+      }
+
+      // Save updated config
+      return this.save(existingConfig, targetPath);
+    } catch (error) {
+      return {
+        success: false,
+        error: `Failed to add tool: ${error}`,
+      };
+    }
   }
 }
 

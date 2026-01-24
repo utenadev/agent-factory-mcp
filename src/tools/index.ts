@@ -1,14 +1,15 @@
 // Tool Registry Index - Registers all tools
 import { toolRegistry, registerProvider } from "./registry.js";
 // import { askQwenTool } from './ask-qwen.tool.js';
-import { pingTool, helpTool } from "./simple-tools.js";
+import { pingTool, helpTool, registerCliToolTool } from "./simple-tools.js";
 import { QwenProvider } from "../providers/qwen.provider.js";
 
 // Register Static Tools
 toolRegistry.push(
   // askQwenTool, // Replaced by QwenProvider
   pingTool,
-  helpTool
+  helpTool,
+  registerCliToolTool, // System tool for dynamic registration
 );
 
 // Register Dynamic Providers
