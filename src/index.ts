@@ -22,7 +22,7 @@ import { ConfigLoader } from "./utils/configLoader.js";
 import { registerProvider } from "./tools/registry.js";
 import { GenericCliProvider } from "./providers/generic-cli.provider.js";
 import type { ToolArguments } from "./constants.js";
-
+import type { ToolConfig } from "./utils/configLoader.js";
 import {
   getToolDefinitions,
   getPromptDefinitions,
@@ -31,126 +31,152 @@ import {
   getPromptMessage,
 } from "./tools/index.js";
 
-const server = new Server(
-  {
-    name: "agent-factory-mcp",
-    version: "1.0.0",
-  },
-  {
-    capabilities: {
-      tools: {},
-      prompts: {},
-      notifications: {},
-      logging: {},
+// ============================================================================
+// Server Configuration
+// ============================================================================
+
+function createServer(): Server {
+  return new Server(
+    {
+      name: "agent-factory-mcp",
+      version: "1.0.0",
     },
-  }
-);
-
-// tools/list
-server.setRequestHandler(
-  ListToolsRequestSchema,
-  async (request: ListToolsRequest): Promise<{ tools: Tool[] }> => {
-    return { tools: getToolDefinitions() as unknown as Tool[] };
-  }
-);
-
-// tools/get
-server.setRequestHandler(
-  CallToolRequestSchema,
-  async (request: CallToolRequest): Promise<CallToolResult> => {
-    const toolName: string = request.params.name;
-
-    if (toolExists(toolName)) {
-      // Type guard for _meta property (MCP extension)
-      const paramsWithMeta = request.params as {
-        name: string;
-        arguments?: ToolArguments;
-        _meta?: { progressToken?: string | number };
-      };
-      const progressToken = paramsWithMeta._meta?.progressToken;
-
-      // Start progress updates if client requested them
-      const progressData = ProgressManager.startUpdates(server, toolName, progressToken);
-
-      try {
-        const args: ToolArguments = (request.params.arguments as ToolArguments) || {};
-
-        Logger.toolInvocation(toolName, request.params.arguments);
-
-        // Execute the tool using the unified registry with progress callback
-        const result = await executeTool(toolName, args, newOutput => {
-          ProgressManager.updateOutput(newOutput);
-        });
-
-        ProgressManager.stopUpdates(server, progressData, true);
-
-        return {
-          content: [{ type: "text", text: result }],
-          isError: false,
-        };
-      } catch (error) {
-        ProgressManager.stopUpdates(server, progressData, false);
-
-        Logger.error(`Error in tool '${toolName}':`, error);
-
-        const errorMessage = error instanceof Error ? error.message : String(error);
-
-        return {
-          content: [{ type: "text", text: `Error executing ${toolName}: ${errorMessage}` }],
-          isError: true,
-        };
-      }
-    } else {
-      throw new Error(`Unknown tool: ${request.params.name}`);
+    {
+      capabilities: {
+        tools: {},
+        prompts: {},
+        notifications: {},
+        logging: {},
+      },
     }
+  );
+}
+
+const server = createServer();
+
+// ============================================================================
+// MCP Request Handlers
+// ============================================================================
+
+/**
+ * Handle tool execution with progress tracking and error handling.
+ */
+async function handleToolExecution(
+  request: CallToolRequest,
+  server: Server
+): Promise<CallToolResult> {
+  const toolName = request.params.name;
+
+  if (!toolExists(toolName)) {
+    throw new Error(`Unknown tool: ${toolName}`);
   }
-);
 
-// prompts/list
-server.setRequestHandler(
-  ListPromptsRequestSchema,
-  async (request: ListPromptsRequest): Promise<{ prompts: Prompt[] }> => {
-    return { prompts: getPromptDefinitions() as unknown as Prompt[] };
-  }
-);
+  const paramsWithMeta = request.params as {
+    name: string;
+    arguments?: ToolArguments;
+    _meta?: { progressToken?: string | number };
+  };
+  const progressToken = paramsWithMeta._meta?.progressToken;
+  const progressData = ProgressManager.startUpdates(server, toolName, progressToken);
 
-// prompts/get
-server.setRequestHandler(
-  GetPromptRequestSchema,
-  async (request: GetPromptRequest): Promise<GetPromptResult> => {
-    const promptName = request.params.name;
-    const args = request.params.arguments || {};
+  try {
+    const args: ToolArguments = (request.params.arguments as ToolArguments) || {};
+    Logger.toolInvocation(toolName, request.params.arguments);
 
-    const promptMessage = getPromptMessage(promptName, args);
+    const result = await executeTool(toolName, args, newOutput => {
+      ProgressManager.updateOutput(newOutput);
+    });
 
-    if (!promptMessage) {
-      throw new Error(`Unknown prompt: ${promptName}`);
-    }
+    ProgressManager.stopUpdates(server, progressData, true);
 
     return {
-      messages: [
-        {
-          role: "user" as const,
-          content: {
-            type: "text" as const,
-            text: promptMessage,
-          },
-        },
-      ],
+      content: [{ type: "text", text: result }],
+      isError: false,
+    };
+  } catch (error) {
+    ProgressManager.stopUpdates(server, progressData, false);
+    Logger.error(`Error in tool '${toolName}':`, error);
+
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return {
+      content: [{ type: "text", text: `Error executing ${toolName}: ${errorMessage}` }],
+      isError: true,
     };
   }
+}
+
+/**
+ * Handle prompt retrieval with error handling.
+ */
+async function handlePromptGet(request: GetPromptRequest): Promise<GetPromptResult> {
+  const promptName = request.params.name;
+  const args = request.params.arguments || {};
+  const promptMessage = getPromptMessage(promptName, args);
+
+  if (!promptMessage) {
+    throw new Error(`Unknown prompt: ${promptName}`);
+  }
+
+  return {
+    messages: [
+      {
+        role: "user" as const,
+        content: {
+          type: "text" as const,
+          text: promptMessage,
+        },
+      },
+    ],
+  };
+}
+
+// Register MCP request handlers
+server.setRequestHandler(ListToolsRequestSchema, async () => ({
+  tools: getToolDefinitions() as unknown as Tool[],
+}));
+
+server.setRequestHandler(CallToolRequestSchema, (req: CallToolRequest) =>
+  handleToolExecution(req, server)
 );
 
-// Start the server
-async function main() {
-  Logger.debug("init qwencode-mcp-server");
+server.setRequestHandler(ListPromptsRequestSchema, async () => ({
+  prompts: getPromptDefinitions() as unknown as Prompt[],
+}));
 
-  // Load configuration file and register tools
-  await initializeFromConfig();
+server.setRequestHandler(GetPromptRequestSchema, handlePromptGet);
 
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  Logger.debug("qwencode-mcp-server listening on stdio");
+// ============================================================================
+// Tool Registration Helpers
+// ============================================================================
+
+interface ToolRegistrationResult {
+  registeredCount: number;
+  skippedCount: number;
+}
+
+/**
+ * Register a single tool from its configuration.
+ * Returns true if successful, false otherwise.
+ */
+async function registerToolFromConfig(
+  config: ToolConfig,
+  toolName: string
+): Promise<boolean> {
+  try {
+    const provider = await GenericCliProvider.create(config);
+
+    if (!provider) {
+      Logger.warn(`Command '${config.command}' not found in PATH - skipping`);
+      return false;
+    }
+
+    registerProvider(provider);
+    Logger.debug(`Registered tool: ${toolName} (command: ${config.command})`);
+    return true;
+  } catch (error) {
+    Logger.error(`Failed to register tool '${toolName}':`, error);
+    return false;
+  }
 }
 
 /**
@@ -161,11 +187,11 @@ async function main() {
  *
  * Each argument is treated as a CLI command to register.
  */
-async function initializeFromCliArgs(): Promise<void> {
-  const cliArgs = process.argv.slice(2);
+async function initializeFromCliArgs(): Promise<ToolRegistrationResult> {
+  const cliArgs = process.argv.slice(2).filter(arg => !arg.startsWith("-"));
 
   if (cliArgs.length === 0) {
-    return;
+    return { registeredCount: 0, skippedCount: 0 };
   }
 
   Logger.debug(`Processing CLI arguments: ${cliArgs.join(", ")}`);
@@ -174,31 +200,16 @@ async function initializeFromCliArgs(): Promise<void> {
   let skippedCount = 0;
 
   for (const command of cliArgs) {
-    // Skip if it looks like a flag
-    if (command.startsWith("-")) {
-      continue;
-    }
+    const config = {
+      command,
+      enabled: true,
+      providerType: "cli-auto" as const,
+    };
 
-    try {
-      const config = {
-        command,
-        enabled: true,
-        providerType: "cli-auto" as const,
-      };
-
-      const provider = await GenericCliProvider.create(config);
-
-      if (!provider) {
-        Logger.warn(`Command '${command}' not found in PATH - skipping`);
-        skippedCount++;
-        continue;
-      }
-
-      registerProvider(provider);
+    const success = await registerToolFromConfig(config, command);
+    if (success) {
       registeredCount++;
-      Logger.debug(`Registered tool from CLI argument: ${command}`);
-    } catch (error) {
-      Logger.error(`Failed to register tool '${command}':`, error);
+    } else {
       skippedCount++;
     }
   }
@@ -206,6 +217,8 @@ async function initializeFromCliArgs(): Promise<void> {
   Logger.info(
     `CLI arguments processed: ${registeredCount} tools registered, ${skippedCount} skipped`
   );
+
+  return { registeredCount, skippedCount };
 }
 
 /**
@@ -219,19 +232,17 @@ async function initializeFromCliArgs(): Promise<void> {
  * 5. Registers the provider with the tool registry
  */
 async function initializeFromConfig(): Promise<void> {
-  // First, process command-line arguments for quick tool registration
+  // Process command-line arguments first
   await initializeFromCliArgs();
 
-  // Then, load configuration file
+  // Load configuration file
   const loadResult = ConfigLoader.load();
 
-  // No config file found - this is okay, use defaults
   if (!loadResult.configPath) {
     Logger.debug("No configuration file found, using default tools only");
     return;
   }
 
-  // Config file exists but failed to load
   if (loadResult.error) {
     Logger.error(`Failed to load config from ${loadResult.configPath}:`, loadResult.error);
     return;
@@ -247,16 +258,19 @@ async function initializeFromConfig(): Promise<void> {
     return;
   }
 
-  // Resolve and register each tool
+  await registerToolsFromConfig(tools);
+}
+
+/**
+ * Register multiple tools from resolved configuration.
+ */
+async function registerToolsFromConfig(tools: ToolConfig[]): Promise<void> {
   const resolved = await ConfigLoader.resolveTools(tools);
 
   let registeredCount = 0;
   let skippedCount = 0;
 
-  for (const resolvedTool of resolved) {
-    const { config, toolName, isAvailable } = resolvedTool;
-
-    // Skip tools that aren't available
+  for (const { config, toolName, isAvailable } of resolved) {
     if (!isAvailable) {
       Logger.warn(
         `Tool '${toolName}' (command: ${config.command}) is not available in PATH - skipping`
@@ -265,22 +279,10 @@ async function initializeFromConfig(): Promise<void> {
       continue;
     }
 
-    try {
-      // Create provider using GenericCliProvider
-      const provider = await GenericCliProvider.create(config);
-
-      if (!provider) {
-        Logger.warn(`Failed to create provider for '${toolName}' - skipping`);
-        skippedCount++;
-        continue;
-      }
-
-      // Register the provider
-      registerProvider(provider);
+    const success = await registerToolFromConfig(config, toolName);
+    if (success) {
       registeredCount++;
-      Logger.debug(`Registered tool: ${toolName} (command: ${config.command})`);
-    } catch (error) {
-      Logger.error(`Failed to register tool '${toolName}':`, error);
+    } else {
       skippedCount++;
     }
   }
@@ -289,6 +291,24 @@ async function initializeFromConfig(): Promise<void> {
     `Configuration loaded: ${registeredCount} tools registered, ${skippedCount} skipped`
   );
 }
+
+// ============================================================================
+// Server Startup
+// ============================================================================
+
+/**
+ * Main entry point - initialize and start the MCP server.
+ */
+async function main(): Promise<void> {
+  Logger.debug("init qwencode-mcp-server");
+
+  await initializeFromConfig();
+
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  Logger.debug("qwencode-mcp-server listening on stdio");
+}
+
 main().catch(error => {
   Logger.error("Fatal error:", error);
   process.exit(1);

@@ -3,19 +3,9 @@ import { resolve } from "node:path";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
-/**
- * Resolved tool configuration with availability status.
- */
-export interface ResolvedToolConfig {
-  /** Original configuration */
-  config: ToolConfig;
-
-  /** Resolved tool name (alias or ask-<command>) */
-  toolName: string;
-
-  /** Whether the command is available in PATH */
-  isAvailable: boolean;
-}
+// ============================================================================
+// Constants
+// ============================================================================
 
 /**
  * Configuration file names to search for, in order of priority.
@@ -24,7 +14,21 @@ const CONFIG_FILE_NAMES = [
   "ai-tools.json",
   ".qwencoderc.json",
   "qwencode.config.json",
-];
+] as const;
+
+/**
+ * Default configuration version.
+ */
+const DEFAULT_VERSION = "1.0";
+
+/**
+ * Default configuration filename.
+ */
+const DEFAULT_CONFIG_FILENAME = "ai-tools.json";
+
+// ============================================================================
+// Zod Schemas
+// ============================================================================
 
 /**
  * Zod schema for validating ToolConfig.
@@ -46,9 +50,25 @@ const ToolConfigSchema = z.object({
  * Zod schema for validating ToolsConfig.
  */
 const ToolsConfigSchema = z.object({
-  version: z.string().default("1.0"),
+  version: z.string().default(DEFAULT_VERSION),
   tools: z.array(ToolConfigSchema),
 });
+
+// ============================================================================
+// Type Definitions
+// ============================================================================
+
+/**
+ * Resolved tool configuration with availability status.
+ */
+export interface ResolvedToolConfig {
+  /** Original configuration */
+  config: ToolConfig;
+  /** Resolved tool name (alias or ask-<command>) */
+  toolName: string;
+  /** Whether the command is available in PATH */
+  isAvailable: boolean;
+}
 
 /**
  * Configuration loader result.
@@ -56,13 +76,24 @@ const ToolsConfigSchema = z.object({
 export interface ConfigLoadResult {
   /** The loaded configuration */
   config: ToolsConfig | null;
-
   /** Path to the config file that was loaded */
   configPath: string | null;
-
   /** Error message if loading failed */
   error: string | null;
 }
+
+/**
+ * Operation result with success status and optional error message.
+ */
+type OperationResult = { success: boolean; error: string | null };
+
+// Re-export types inferred from Zod schema for consistency
+export type ToolConfig = z.infer<typeof ToolConfigSchema>;
+export type ToolsConfig = z.infer<typeof ToolsConfigSchema>;
+
+// ============================================================================
+// ConfigLoader Class
+// ============================================================================
 
 /**
  * Configuration loader for AI tools registration.
@@ -71,54 +102,53 @@ export interface ConfigLoadResult {
  * validates them against the schema.
  */
 export class ConfigLoader {
+  // ========================================================================
+  // File Operation Helpers
+  // ========================================================================
+
   /**
-   * Search for and load the configuration file.
-   *
-   * @param searchDir - Directory to search from (default: process.cwd())
-   * @returns Load result with config, path, and error
+   * Read and parse a JSON file.
    */
-  static load(searchDir: string = process.cwd()): ConfigLoadResult {
-    const configPath = this.findConfigFile(searchDir);
-
-    if (!configPath) {
-      return {
-        config: null,
-        configPath: null,
-        error: null,
-      };
-    }
-
-    try {
-      const rawContent = readFileSync(configPath, "utf-8");
-      const parsedJson = JSON.parse(rawContent);
-
-      // Validate against schema
-      const validationResult = ToolsConfigSchema.safeParse(parsedJson);
-
-      if (!validationResult.success) {
-        const errors = validationResult.error.errors
-          .map((e) => `${e.path.join(".")}: ${e.message}`)
-          .join(", ");
-        return {
-          config: null,
-          configPath,
-          error: `Invalid configuration: ${errors}`,
-        };
-      }
-
-      return {
-        config: validationResult.data,
-        configPath,
-        error: null,
-      };
-    } catch (error) {
-      return {
-        config: null,
-        configPath,
-        error: `Failed to load config: ${error}`,
-      };
-    }
+  private static readJsonFile(filePath: string): unknown {
+    const content = readFileSync(filePath, "utf-8");
+    return JSON.parse(content);
   }
+
+  /**
+   * Write an object to a JSON file with pretty formatting.
+   * Creates parent directories if they don't exist.
+   */
+  private static writeJsonFile(filePath: string, data: object): void {
+    const dir = resolve(filePath, "..");
+    if (!existsSync(dir)) {
+      mkdirSync(dir, { recursive: true });
+    }
+    const content = JSON.stringify(data, null, 2);
+    writeFileSync(filePath, content, "utf-8");
+  }
+
+  /**
+   * Format Zod validation errors into a readable string.
+   */
+  private static formatValidationErrors(error: z.ZodError): string {
+    return error.errors
+      .map((e) => `${e.path.join(".")}: ${e.message}`)
+      .join(", ");
+  }
+
+  /**
+   * Create an empty configuration object.
+   */
+  private static createEmptyConfig(): ToolsConfig {
+    return {
+      version: DEFAULT_VERSION,
+      tools: [],
+    };
+  }
+
+  // ========================================================================
+  // Configuration Discovery
+  // ========================================================================
 
   /**
    * Find the first existing configuration file in the search directory.
@@ -134,52 +164,71 @@ export class ConfigLoader {
   }
 
   /**
-   * Get the JSON schema for the configuration file.
-   * Useful for IDE autocomplete and validation.
+   * Resolve the target config path, using existing config or default.
    */
-  static getJsonSchema(): object {
-    return zodToJsonSchema(ToolsConfigSchema, {
-      definitionPath: "tools",
-    });
+  private static resolveTargetPath(customPath: string): string {
+    if (customPath) return customPath;
+    return (
+      this.findConfigFile(process.cwd()) ||
+      resolve(process.cwd(), DEFAULT_CONFIG_FILENAME)
+    );
+  }
+
+  // ========================================================================
+  // Configuration Loading
+  // ========================================================================
+
+  /**
+   * Search for and load the configuration file.
+   *
+   * @param searchDir - Directory to search from (default: process.cwd())
+   * @returns Load result with config, path, and error
+   */
+  static load(searchDir: string = process.cwd()): ConfigLoadResult {
+    const configPath = this.findConfigFile(searchDir);
+
+    if (!configPath) {
+      return { config: null, configPath: null, error: null };
+    }
+
+    try {
+      const parsedJson = this.readJsonFile(configPath);
+      const validationResult = ToolsConfigSchema.safeParse(parsedJson);
+
+      if (!validationResult.success) {
+        return {
+          config: null,
+          configPath,
+          error: `Invalid configuration: ${this.formatValidationErrors(validationResult.error)}`,
+        };
+      }
+
+      return { config: validationResult.data, configPath, error: null };
+    } catch (error) {
+      return {
+        config: null,
+        configPath,
+        error: `Failed to load config: ${error}`,
+      };
+    }
   }
 
   /**
-   * Resolve tool configurations to check availability.
-   *
-   * @param configs - Tool configurations to resolve
-   * @returns Resolved configurations with availability status
+   * Load configuration from a specific path with validation.
+   * Returns the config or creates a new one if the file doesn't exist.
    */
-  static async resolveTools(
-    configs: ToolConfig[]
-  ): Promise<ResolvedToolConfig[]> {
-    const { GenericCliProvider } = await import(
-      "../providers/generic-cli.provider.js"
-    );
-
-    const resolved: ResolvedToolConfig[] = [];
-
-    for (const config of configs) {
-      // Skip disabled tools
-      if (config.enabled === false) {
-        continue;
-      }
-
-      // Check availability
-      const isAvailable =
-        await GenericCliProvider.isCommandAvailable(config.command);
-
-      // Determine tool name
-      const toolName = config.alias || `ask-${config.command}`;
-
-      resolved.push({
-        config,
-        toolName,
-        isAvailable,
-      });
+  private static loadOrCreate(filePath: string): ToolsConfig {
+    if (!existsSync(filePath)) {
+      return this.createEmptyConfig();
     }
 
-    return resolved;
+    const parsed = this.readJsonFile(filePath);
+    return ToolsConfigSchema.parse(parsed);
   }
+
+  // ========================================================================
+  // Configuration Persistence
+  // ========================================================================
 
   /**
    * Save configuration to a JSON file.
@@ -191,21 +240,11 @@ export class ConfigLoader {
   static save(
     config: ToolsConfig,
     configPath: string = ""
-  ): { success: boolean; error: string | null } {
-    const targetPath =
-      configPath || resolve(process.cwd(), "ai-tools.json");
+  ): OperationResult {
+    const targetPath = configPath || resolve(process.cwd(), DEFAULT_CONFIG_FILENAME);
 
     try {
-      // Ensure directory exists
-      const dir = resolve(targetPath, "..");
-      if (!existsSync(dir)) {
-        mkdirSync(dir, { recursive: true });
-      }
-
-      // Write config with pretty formatting
-      const content = JSON.stringify(config, null, 2);
-      writeFileSync(targetPath, content, "utf-8");
-
+      this.writeJsonFile(targetPath, config);
       return { success: true, error: null };
     } catch (error) {
       return {
@@ -225,40 +264,12 @@ export class ConfigLoader {
   static addTool(
     toolConfig: ToolConfig,
     configPath: string = ""
-  ): { success: boolean; error: string | null } {
-    const targetPath =
-      configPath || this.findConfigFile(process.cwd()) ||
-      resolve(process.cwd(), "ai-tools.json");
+  ): OperationResult {
+    const targetPath = this.resolveTargetPath(configPath);
 
     try {
-      // Load existing config or create new one
-      let existingConfig: ToolsConfig;
-
-      if (existsSync(targetPath)) {
-        const content = readFileSync(targetPath, "utf-8");
-        const parsed = JSON.parse(content);
-        existingConfig = ToolsConfigSchema.parse(parsed);
-      } else {
-        existingConfig = {
-          version: "1.0",
-          tools: [],
-        };
-      }
-
-      // Check if tool already exists
-      const existingIndex = existingConfig.tools.findIndex(
-        (t) => t.command === toolConfig.command
-      );
-
-      if (existingIndex >= 0) {
-        // Update existing tool
-        existingConfig.tools[existingIndex] = toolConfig;
-      } else {
-        // Add new tool
-        existingConfig.tools.push(toolConfig);
-      }
-
-      // Save updated config
+      const existingConfig = this.loadOrCreate(targetPath);
+      this.upsertTool(existingConfig, toolConfig);
       return this.save(existingConfig, targetPath);
     } catch (error) {
       return {
@@ -267,8 +278,68 @@ export class ConfigLoader {
       };
     }
   }
-}
 
-// Re-export types inferred from Zod schema for consistency
-export type ToolConfig = z.infer<typeof ToolConfigSchema>;
-export type ToolsConfig = z.infer<typeof ToolsConfigSchema>;
+  /**
+   * Add or update a tool in the configuration.
+   */
+  private static upsertTool(
+    config: ToolsConfig,
+    toolConfig: ToolConfig
+  ): void {
+    const existingIndex = config.tools.findIndex(
+      (t) => t.command === toolConfig.command
+    );
+
+    if (existingIndex >= 0) {
+      config.tools[existingIndex] = toolConfig;
+    } else {
+      config.tools.push(toolConfig);
+    }
+  }
+
+  // ========================================================================
+  // Tool Resolution
+  // ========================================================================
+
+  /**
+   * Resolve tool configurations to check availability.
+   *
+   * @param configs - Tool configurations to resolve
+   * @returns Resolved configurations with availability status
+   */
+  static async resolveTools(
+    configs: ToolConfig[]
+  ): Promise<ResolvedToolConfig[]> {
+    const { GenericCliProvider } = await import(
+      "../providers/generic-cli.provider.js"
+    );
+
+    const resolved: ResolvedToolConfig[] = [];
+
+    for (const config of configs) {
+      if (config.enabled === false) continue;
+
+      const isAvailable =
+        await GenericCliProvider.isCommandAvailable(config.command);
+      const toolName = config.alias || `ask-${config.command}`;
+
+      resolved.push({ config, toolName, isAvailable });
+    }
+
+    return resolved;
+  }
+
+  // ========================================================================
+  // Schema Export
+  // ========================================================================
+
+  /**
+   * Get the JSON schema for the configuration file.
+   * Useful for IDE autocomplete and validation.
+   */
+  static getJsonSchema(): object {
+    return zodToJsonSchema(ToolsConfigSchema, {
+      definitionPath: "tools",
+    } as any);
+  }
+}
