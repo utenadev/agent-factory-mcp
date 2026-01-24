@@ -1,11 +1,11 @@
 {
-  "name": "qwencode-mcp-server",
+  "name": "agent-factory-mcp",
   "version": "1.0.0",
-  "description": "MCP server for QwenCode integration",
+  "description": "Universal MCP server for CLI tool auto-discovery and AI agent management",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "qwencode-mcp": "dist/index.js"
+    "agent-factory-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -21,13 +21,14 @@
   "keywords": [
     "mcp",
     "modelcontextprotocol",
-    "qwen",
-    "qwen-code",
-    "qwencode",
+    "cli",
     "ai",
-    "llm"
+    "llm",
+    "agent",
+    "auto-discovery",
+    "tool-registration"
   ],
-  "author": "Qwen Team",
+  "author": "utenadev",
   "license": "MIT",
   "engines": {
     "bun": ">=1.0.0"

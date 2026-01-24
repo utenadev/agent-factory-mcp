@@ -1,213 +1,289 @@
-# QwenCode MCP ツール
+# Agent Factory MCP
 
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Open Source](https://img.shields.io/badge/Open%20Source-❤️-red.svg)](https://github.com/utenadev/qwencode-mcp-server)
+[![Open Source](https://img.shields.io/badge/Open%20Source-❤️-red.svg)](https://github.com/utenadev/agent-factory-mcp)
 
 </div>
 
-> Qwen AI モデルと対話するためのモデルコンテキストプロトコル（MCP）サーバー。AIが `@` 構文を使用して大規模なファイルやコードベースを直接分析できるように、Qwen の強力な機能を活用できます。
+> CLI ツールを自動発見して MCP ツールとして登録する汎用モデルコンテキストプロトコル（MCP）サーバー。任意の CLI ツール（Qwen、Ollama、Aider など）をペルソナ設定付きの AI エージェントに変換できます。
 
-- 他の AI アシスタント経由で Qwen に自然言語で質問
-- AI ワークフロー内で Qwen の強力な分析機能を直接利用
+## 特徴
 
-**注**: このプロジェクトは [jamubc/gemini-mcp-tool](https://github.com/jamubc/gemini-mcp-tool) に触発され、Qwen との統合用に調整されています。
+- **自動発見**: CLI の `--help` 出力を自動的に解析してツールメタデータを生成
+- **ゼロコード登録**: 設定ファイルまたはコマンドライン引数でツールを登録
+- **ペルソナサポート**: システムプロンプトを設定して専門化された AI エージェントを作成
+- **マルチプロバイダー**: 複数の AI ツールを同時に使用（Qwen、Gemini、Aider など）
+- **ランタイム登録**: MCP プロトコル経由で新しいツールを動的に追加
 
-## リポジトリ構造
+## アーキテクチャ
 
+```mermaid
+graph TB
+    subgraph "MCP クライアント"
+        A[Claude Desktop / Claude Code]
+    end
+
+    subgraph "Agent Factory MCP サーバー"
+        B[サーバーエントリーポイント]
+        C[設定ローダー]
+        D[ツールレジストリ]
+        E[動的ツールファクトリー]
+
+        subgraph "プロバイダー"
+            F[QwenProvider]
+            G[GenericCliProvider]
+        end
+
+        subgraph "パーサー"
+            H[HelpParser]
+        end
+    end
+
+    subgraph "CLI ツール"
+        I[qwen]
+        J[gemini]
+        K[aider]
+        L[ollama]
+        M[...任意の CLI ツール]
+    end
+
+    A -->|stdio| B
+    B --> C
+    B -->|CLI 引数| G
+    C -->|設定読み込み| D
+    G -->|作成| D
+    D --> E
+    E -->|生成| F
+    F -->|実行| I
+    F -->|実行| J
+    F -->|実行| K
+    G -->|--help 解析| H
+    H -->|メタデータ| G
 ```
-qwencode-mcp-server/
-├── .gitignore
-├── LICENSE
-├── package.json
-├── README.ja.md
-├── README.md
-├── src
-│   ├── constants.ts
-│   ├── index.ts
-│   ├── tools
-│   │   ├── ask-qwen.tool.ts
-│   │   ├── index.ts
-│   │   ├── registry.ts
-│   │   └── simple-tools.ts
-│   └── utils
-│       ├── commandExecutor.ts
-│       ├── logger.ts
-│       ├── progressManager.ts
-│       └── qwenExecutor.ts
-├── test
-│   ├── registry.test.js
-│   └── tools.test.js
-└── tsconfig.json
+
+## 状態遷移
+
+```mermaid
+stateDiagram-v2
+    [*] --> 初期化
+
+    初期化 --> 設定読み込み: 起動
+    初期化 --> CLI引数処理: CLI 引数あり
+
+    設定読み込み --> CLI引数処理: 設定読み完了
+    CLI引数処理 --> プロバイダー登録
+
+    プロバイダー登録 --> プロバイダー作成: ツール利用可能
+    プロバイダー登録 --> プロバイダースキップ: ツール未検出
+
+    プロバイダー作成 --> ツール生成
+    プロバイダースキップ --> プロバイダー登録: 次のツール
+
+    ツール生成 --> ツール登録
+    ツール登録 --> プロバイダー登録: 次のツール
+
+    プロバイダー登録 --> サーバー稼働: すべてのツール処理完了
+    サーバー稼働 --> [*]: MCP リクエスト待機中
+
+    サーバー稼働 --> ランタイム登録: register_cli_tool 呼び出し
+    ランタイム登録 --> サーバー稼働: ツール追加
+
+    note right of 設定読み込み
+        ai-tools.json または
+        .qwencoderc.json を読み込み
+    end note
+
+    note right of CLI引数処理
+        次のような CLI 引数を解析:
+        npx agent-factory-mcp qwen gemini aider
+    end note
 ```
 
-## 前提条件
-
-このツールを使用する前に、以下のものがインストールされていることを確認してください：
-
-1. **[Node.js](https://nodejs.org/)** (v16.0.0 以上)
-2. **Qwen CLI アクセス** - このツールには `qwen` コマンドが必要です。以下の準備が必要です：
-   - Qwen CLI ツールのインストール
-   - API キーや認証の設定（Qwen で必要な場合）
-
-### インストール
-
-このツールを使用するには、まずインストールする必要があります。これはまだnpmパッケージとして公開されていないため、GitHubから直接インストールできます：
+## インストール
 
 ```bash
-npm install -g github:utenadev/qwencode-mcp-server
-```
+# npm 経由でインストール
+npm install -g agent-factory-mcp
 
-または、インストールせずにnpxで直接使用することもできます：
+# または npx でインストールなしで使用
+npx agent-factory-mcp
 
-```bash
-npx github:utenadev/qwencode-mcp-server
-```
-
-または、bunxを使用（Bunがインストールされている場合）：
-
-```bash
-bunx github:utenadev/qwencode-mcp-server
-```
-
-### 1行でのセットアップ
-
-インストール後、ClaudeにMCPサーバーを登録します：
-
-```bash
-claude mcp add qwen -- npx github:utenadev/qwencode-mcp-server
-```
-
-または、bunxを使用：
-
-```bash
-claude mcp add qwen -- bunx github:utenadev/qwencode-mcp-server
-```
-
-### インストールの確認
-
-Claude Code 内で `/mcp` と入力し、qwen MCP が有効になっていることを確認します。
-
----
-
-### 代替方法：Claude Desktop からのインポート
-
-Claude Desktop ですでに設定済みの場合：
-
-1. Claude Desktop 設定ファイルに追加：
-```json
-"qwen": {
-  "command": "npx",
-  "args": ["github:utenadev/qwencode-mcp-server"]
-}
-```
-
-または、bunxを使用：
-```json
-"qwen": {
-  "command": "bunx",
-  "args": ["github:utenadev/qwencode-mcp-server"]
-}
-```
-
-2. Claude Code にインポート：
-```bash
-claude mcp add-from-claude-desktop
+# または bun で使用
+bunx agent-factory-mcp
 ```
 
 ## 設定
 
-MCP クライアントに MCP サーバーを登録します：
+### 方法 1: コマンドライン引数
 
-### NPX 使用の場合（推奨）
+CLI 引数で直接ツールを登録：
 
-Claude Desktop 設定ファイルに以下を追加：
+```bash
+npx agent-factory-mcp qwen gemini aider
+```
+
+### 方法 2: 設定ファイル
+
+プロジェクトルートに `ai-tools.json` を作成：
+
+```json
+{
+  "$schema": "./schema.json",
+  "version": "1.0",
+  "tools": [
+    {
+      "command": "qwen",
+      "alias": "code-reviewer",
+      "description": "セキュリティとパフォーマンスに焦点を当てたコードレビューエキスパート",
+      "systemPrompt": "あなたはシニアコードレビュアーです。セキュリティ脆弱性、パフォーマンス問題、保守性に焦点を当ててください。"
+    },
+    {
+      "command": "qwen",
+      "alias": "doc-writer",
+      "description": "技術ドキュメントスペシャリスト",
+      "systemPrompt": "あなたは開発者向けに明確で簡潔な技術ドキュメントを書きます。"
+    }
+  ]
+}
+```
+
+### 方法 3: ランタイム登録
+
+`register_cli_tool` MCP ツールを使用：
+
+```
+register_cli_tool({
+  command: "ollama",
+  alias: "local-llm",
+  description: "Ollama経由でローカルLLMモデルを実行",
+  systemPrompt: "あなたはローカルで実行されている役立つAIアシスタントです。",
+  persist: true
+})
+```
+
+## MCP クライアント設定
+
+### Claude Desktop
+
+Claude Desktop 設定ファイルに追加：
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+**Linux**: `~/.config/claude/claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
-    "qwen": {
+    "agent-factory": {
       "command": "npx",
-      "args": ["-y", "qwencode-mcp-server"]
+      "args": ["agent-factory-mcp", "qwen", "gemini", "aider"]
     }
   }
 }
 ```
 
-### グローバルインストールの場合
+### Claude Code CLI
 
-グローバルにインストールした場合は、代わりにこちらの設定を使用：
-
-```json
-{
-  "mcpServers": {
-    "qwen": {
-      "command": "npx",
-      "args": ["github:utenadev/qwencode-mcp-server"]
-    }
-  }
-}
+```bash
+claude mcp add agent-factory -- npx agent-factory-mcp qwen gemini aider
 ```
-
-または、bunxを使用する場合：
-
-```json
-{
-  "mcpServers": {
-    "qwen": {
-      "command": "bunx",
-      "args": ["github:utenadev/qwencode-mcp-server"]
-    }
-  }
-}
-```
-
-**設定ファイルの場所:**
-
-- **Claude Desktop**:
-  - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-  - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-  - **Linux**: `~/.config/claude/claude_desktop_config.json`
-
-設定を更新後、ターミナルセッションを再起動してください。
-
-## 例ワークフロー
-
-- **自然言語**: "index.html を説明するために qwen を使用", "巨大なプロジェクトを qwen を使って理解する", "最新ニュースを探すために qwen に依頼"
-- **Claude Code**: MCP サーバーが有効な場合、`ask-qwen` ツールが利用可能です。
 
 ## 使用例
 
-### ファイル参照付き（@ 構文使用）
+### 専門化されたエージェントの使用
 
-- `@src/main.js を分析して何をするか説明するために qwen を使用`
-- `現在のディレクトリを要約するために qwen を使用 @.`
-- `依存関係について @package.json を分析`
+```bash
+# セキュリティ重視のコードレビュー
+"code-reviewerを使ってこのファイルのセキュリティ問題を分析してください"
 
-### 一般的な質問（ファイルなし）
+# ドキュメント生成
+"doc-writerにこのモジュールのAPIドキュメントを生成させます"
 
-- `最新のテックニュースを探すために qwen に依頼`
-- `div のセンタリングを説明するために qwen を使用`
-- `@file_im_confused_about に関する React 開発のベストプラクティスについて qwen に質問`
+# 一般的なAI支援
+"ask-qwenを使ってこのコードを説明してください"
+```
 
-### 利用可能なツール
+### 複数のAIツール
 
-これらのツールは AI アシスタントが使用するように設計されています。
+```bash
+# タスクに応じて異なるAIを使用
+"gemini-visionを使ってこのスクリーンショットを分析してください"
+"aiderを使ってこの関数をリファクタリングしてください"
+"qwenを使って変更点をレビューしてください"
+```
 
-- **`ask-qwen`**: Qwen AI に質問または分析を依頼します。一般的な質問やファイルの複雑な分析に使用可能。
-  - **`prompt`** （必須）: 分析リクエスト。`@` 構文を使用してファイルまたはディレクトリ参照を含めることができます（例: `@src/main.js これを説明`）または一般的な質問（例: `最新ニュースを検索してください`）。
-  - **`model`** （オプション）: 使用する Qwen モデル。デフォルトは `qwen-max`。
+## 設定スキーマ
 
-- **`Ping`**: 簡単なテストツールでメッセージをエコーします。
-- **`Help`**: QwenCode ヘルプテキストを表示します。
+完全な設定スキーマは `schema.json` を参照してください：
 
-## 貢献
+| フィールド | 型 | 必須 | 説明 |
+|-----------|------|------|------|
+| `command` | string | ✅ | 登録するCLIコマンド（例: "qwen", "ollama"） |
+| `enabled` | boolean | ❌ | ツールが有効かどうか（デフォルト: true） |
+| `alias` | string | ❌ | カスタムツール名（デフォルト: "ask-{command}"） |
+| `description` | string | ❌ | カスタムツール説明 |
+| `systemPrompt` | string | ❌ | AIペルソナ用のシステムプロンプト |
+| `providerType` | string | ❌ | プロバイダータイプ: "cli-auto" または "custom" |
+| `defaultArgs` | object | ❌ | デフォルト引数値 |
 
-貢献は大歓迎です！プルリクエストを自由に送信してください。
+## 開発
+
+```bash
+# 依存関係をインストール
+bun install
+
+# ビルド
+bun run build
+
+# テスト実行
+bun test
+
+# 型チェック
+bun run type-check
+
+# リント
+bun run lint
+
+# フォーマット
+bun run format
+```
+
+## プロジェクト構造
+
+```
+agent-factory-mcp/
+├── src/
+│   ├── index.ts              # サーバーエントリーポイント
+│   ├── constants.ts          # 定数
+│   ├── providers/            # プロバイダー実装
+│   │   ├── base-cli.provider.ts
+│   │   ├── generic-cli.provider.ts
+│   │   └── qwen.provider.ts
+│   ├── tools/                # ツールレジストリとファクトリー
+│   │   ├── registry.ts
+│   │   ├── dynamic-tool-factory.ts
+│   │   └── simple-tools.ts
+│   ├── parsers/              # CLIヘルプパーサー
+│   │   └── help-parser.ts
+│   ├── types/                # TypeScript型定義
+│   │   └── cli-metadata.ts
+│   └── utils/                # ユーティリティ
+│       ├── configLoader.ts
+│       ├── commandExecutor.ts
+│       ├── logger.ts
+│       └── progressManager.ts
+├── test/                     # テストファイル
+├── ai-tools.json.example     # 設定例
+├── schema.json               # JSONスキーマ
+└── Taskfile.yml              # タスクランナー設定
+```
+
+## コントリビューション
+
+貢献大歓迎です！お気軽にプルリクエストを送信してください。
 
 ## ライセンス
 
-このプロジェクトは MIT ライセンスの下でライセンスされています。詳細については [LICENSE](LICENSE) ファイルを参照してください。
-
-**免責事項:** これは非公式のサードパーティーツールであり、Alibaba Cloud または Qwen チームによって提携、承認、スポンサーされたものではありません。
+MIT ライセンス - 詳細は [LICENSE](LICENSE) を参照してください。

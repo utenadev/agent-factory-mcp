@@ -1,206 +1,284 @@
-# QwenCode MCP Tool
+# Agent Factory MCP
 
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Open Source](https://img.shields.io/badge/Open%20Source-❤️-red.svg)](https://github.com/utenadev/qwencode-mcp-server)
+[![Open Source](https://img.shields.io/badge/Open%20Source-❤️-red.svg)](https://github.com/utenadev/agent-factory-mcp)
 
 </div>
 
-> A Model Context Protocol (MCP) server that allows AI assistants to interact with Qwen AI models. It enables the AI to leverage the power of Qwen's capabilities for analysis, especially with large files and codebases.
+> A universal Model Context Protocol (MCP) server that automatically discovers and registers CLI tools as MCP tools. Transform any CLI tool (Qwen, Ollama, Aider, etc.) into an AI-powered agent with persona configuration.
 
-- Ask Qwen natural questions through other AI assistants!
-- Leverage Qwen's powerful analysis capabilities directly in your AI workflows
+## Features
 
-**Note**: This project was inspired by [jamubc/gemini-mcp-tool](https://github.com/jamubc/gemini-mcp-tool) and adapted for Qwen integration.
+- **Auto-Discovery**: Automatically parse CLI `--help` output to generate tool metadata
+- **Zero-Code Registration**: Register tools via config file or command-line arguments
+- **Persona Support**: Configure system prompts to create specialized AI agents
+- **Multi-Provider**: Use multiple AI tools simultaneously (Qwen, Gemini, Aider, etc.)
+- **Runtime Registration**: Add new tools dynamically via MCP protocol
 
-## Repository Structure
+## Architecture
 
+```mermaid
+graph TB
+    subgraph "MCP Client"
+        A[Claude Desktop / Claude Code]
+    end
+
+    subgraph "Agent Factory MCP Server"
+        B[Server Entry Point]
+        C[Config Loader]
+        D[Tool Registry]
+        E[Dynamic Tool Factory]
+
+        subgraph "Providers"
+            F[QwenProvider]
+            G[GenericCliProvider]
+        end
+
+        subgraph "Parsers"
+            H[HelpParser]
+        end
+    end
+
+    subgraph "CLI Tools"
+        I[qwen]
+        J[gemini]
+        K[aider]
+        L[ollama]
+        M[...any CLI tool]
+    end
+
+    A -->|stdio| B
+    B --> C
+    B -->|CLI args| G
+    C -->|load config| D
+    G -->|create| D
+    D --> E
+    E -->|generate| F
+    F -->|execute| I
+    F -->|execute| J
+    F -->|execute| K
+    G -->|parse --help| H
+    H -->|metadata| G
 ```
-qwencode-mcp-server/
-├── .gitignore
-├── LICENSE
-├── package.json
-├── README.ja.md
-├── README.md
-├── src
-│   ├── constants.ts
-│   ├── index.ts
-│   ├── tools
-│   │   ├── ask-qwen.tool.ts
-│   │   ├── index.ts
-│   │   ├── registry.ts
-│   │   └── simple-tools.ts
-│   └── utils
-│       ├── commandExecutor.ts
-│       ├── logger.ts
-│       ├── progressManager.ts
-│       └── qwenExecutor.ts
-├── test
-│   ├── registry.test.js
-│   └── tools.test.js
-└── tsconfig.json
+
+## State Transition
+
+```mermaid
+stateDiagram-v2
+    [*] --> Initialization
+
+    Initialization --> LoadConfig: Start
+    Initialization --> ProcessCLIArgs: CLI args provided
+
+    LoadConfig --> ProcessCLIArgs: Config loaded
+    ProcessCLIArgs --> RegisterProviders
+
+    RegisterProviders --> ProviderCreated: Tool available
+    RegisterProviders --> ProviderSkipped: Tool not found
+
+    ProviderCreated --> GenerateTools
+    ProviderSkipped --> RegisterProviders: Next tool
+
+    GenerateTools --> ToolRegistered
+    ToolRegistered --> RegisterProviders: Next tool
+
+    RegisterProviders --> ServerRunning: All tools processed
+    ServerRunning --> [*]: Ready for MCP requests
+
+    ServerRunning --> RuntimeRegistration: register_cli_tool called
+    RuntimeRegistration --> ServerRunning: Tool added
+
+    note right of LoadConfig
+        Loads ai-tools.json
+        or .qwencoderc.json
+    end note
+
+    note right of ProcessCLIArgs
+        Parses CLI args like:
+        npx agent-factory-mcp qwen gemini aider
+    end note
 ```
 
-## Prerequisites
-
-Before using this tool, ensure you have:
-
-1. **[Node.js](https://nodejs.org/)** (v16.0.0 or higher)
-2. **Qwen CLI access** - This tool requires the `qwen` command to be available on your system. You may need to:
-   - Install the Qwen CLI tool
-   - Configure API keys or authentication as required by Qwen
-
-### Installation
-
-To use this tool, you need to install it first. Since this is not published as an npm package yet, you can install it directly from GitHub:
+## Installation
 
 ```bash
-npm install -g github:utenadev/qwencode-mcp-server
-```
+# Install via npm
+npm install -g agent-factory-mcp
 
-Or use it directly with npx without installing:
+# Or use with npx without installation
+npx agent-factory-mcp
 
-```bash
-npx github:utenadev/qwencode-mcp-server
-```
-
-Or use it with bunx (if you have Bun installed):
-
-```bash
-bunx github:utenadev/qwencode-mcp-server
-```
-
-### One-Line Setup
-
-Once installed, register the MCP server with Claude:
-
-```bash
-claude mcp add qwen -- npx github:utenadev/qwencode-mcp-server
-```
-
-Or using bunx:
-
-```bash
-claude mcp add qwen -- bunx github:utenadev/qwencode-mcp-server
-```
-
-### Verify Installation
-
-Type `/mcp` inside Claude Code to verify the qwen MCP is active.
-
----
-
-### Alternative: Import from Claude Desktop
-
-If you already have it configured in Claude Desktop:
-
-1. Add to your Claude Desktop config:
-```json
-"qwen": {
-  "command": "npx",
-  "args": ["github:utenadev/qwencode-mcp-server"]
-}
-```
-
-Or using bunx:
-```json
-"qwen": {
-  "command": "bunx",
-  "args": ["github:utenadev/qwencode-mcp-server"]
-}
-```
-
-2. Import to Claude Code:
-```bash
-claude mcp add-from-claude-desktop
+# Or use with bun
+bunx agent-factory-mcp
 ```
 
 ## Configuration
 
-Register the MCP server with your MCP client:
+### Method 1: Command-Line Arguments
 
-### For NPX Usage (Recommended)
+Register tools directly via CLI arguments:
 
-Add this configuration to your Claude Desktop config file:
+```bash
+npx agent-factory-mcp qwen gemini aider
+```
+
+### Method 2: Configuration File
+
+Create `ai-tools.json` in your project root:
+
+```json
+{
+  "$schema": "./schema.json",
+  "version": "1.0",
+  "tools": [
+    {
+      "command": "qwen",
+      "alias": "code-reviewer",
+      "description": "Code review expert focusing on security and performance",
+      "systemPrompt": "You are a senior code reviewer. Focus on security vulnerabilities, performance issues, and maintainability."
+    },
+    {
+      "command": "qwen",
+      "alias": "doc-writer",
+      "description": "Technical documentation specialist",
+      "systemPrompt": "You write clear, concise technical documentation for developers."
+    }
+  ]
+}
+```
+
+### Method 3: Runtime Registration
+
+Use the `register_cli_tool` MCP tool:
+
+```
+register_cli_tool({
+  command: "ollama",
+  alias: "local-llm",
+  description: "Run local LLM models via Ollama",
+  systemPrompt: "You are a helpful AI assistant running locally.",
+  persist: true
+})
+```
+
+## MCP Client Setup
+
+### Claude Desktop
+
+Add to your Claude Desktop config:
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+**Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+**Linux**: `~/.config/claude/claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
-    "qwen": {
+    "agent-factory": {
       "command": "npx",
-      "args": ["-y", "qwencode-mcp-server"]
+      "args": ["agent-factory-mcp", "qwen", "gemini", "aider"]
     }
   }
 }
 ```
 
-### For Global Installation
+### Claude Code CLI
 
-If you installed globally, use this configuration instead:
-
-```json
-{
-  "mcpServers": {
-    "qwen": {
-      "command": "npx",
-      "args": ["github:utenadev/qwencode-mcp-server"]
-    }
-  }
-}
+```bash
+claude mcp add agent-factory -- npx agent-factory-mcp qwen gemini aider
 ```
-
-Alternatively, if you prefer using bunx:
-
-```json
-{
-  "mcpServers": {
-    "qwen": {
-      "command": "bunx",
-      "args": ["github:utenadev/qwencode-mcp-server"]
-    }
-  }
-}
-```
-
-**Configuration File Locations:**
-
-- **Claude Desktop**:
-  - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-  - **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
-  - **Linux**: `~/.config/claude/claude_desktop_config.json`
-
-After updating the configuration, restart your terminal session.
-
-## Example Workflow
-
-- **Natural language**: "use qwen to explain index.html", "understand the massive project using qwen", "ask qwen to search for latest news"
-- **Claude Code**: The MCP tools are available through the `ask-qwen` tool when the MCP server is active.
 
 ## Usage Examples
 
-### With File References (using @ syntax)
+### Using Specialized Agents
 
-- `ask qwen to analyze @src/main.js and explain what it does`
-- `use qwen to summarize @. the current directory`
-- `analyze @package.json and tell me about dependencies`
+```bash
+# Code review with security focus
+"Use code-reviewer to analyze this file for security issues"
 
-### General Questions (without files)
+# Documentation generation
+"Ask doc-writer to generate API docs for this module"
 
-- `ask qwen to search for the latest tech news`
-- `use qwen to explain div centering`
-- `ask qwen about best practices for React development related to @file_im_confused_about`
+# General AI assistance
+"Use ask-qwen to explain this code"
+```
 
-### Available Tools
+### Multiple AI Tools
 
-These tools are designed to be used by the AI assistant.
+```bash
+# Use different AIs for different tasks
+"Use gemini-vision to analyze this screenshot"
+"Use aider to refactor this function"
+"Use qwen to review the changes"
+```
 
-- **`ask-qwen`**: Asks Qwen AI for its perspective. Can be used for general questions or complex analysis of files.
-  - **`prompt`** (required): The analysis request. Use the `@` syntax to include file or directory references (e.g., `@src/main.js explain this code`) or ask general questions (e.g., `Please search for the latest news stories`).
-  - **`model`** (optional): The Qwen model to use. Defaults to `qwen-max`.
+## Configuration Schema
 
-- **`Ping`**: A simple test tool that echoes back a message.
-- **`Help`**: Shows the QwenCode help text.
+See `schema.json` for the full configuration schema:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `command` | string | ✅ | CLI command to register (e.g., "qwen", "ollama") |
+| `enabled` | boolean | ❌ | Whether the tool is enabled (default: true) |
+| `alias` | string | ❌ | Custom tool name (default: "ask-{command}") |
+| `description` | string | ❌ | Custom tool description |
+| `systemPrompt` | string | ❌ | System prompt for AI persona |
+| `providerType` | string | ❌ | Provider type: "cli-auto" or "custom" |
+| `defaultArgs` | object | ❌ | Default argument values |
+
+## Development
+
+```bash
+# Install dependencies
+bun install
+
+# Build
+bun run build
+
+# Run tests
+bun test
+
+# Type check
+bun run type-check
+
+# Lint
+bun run lint
+
+# Format
+bun run format
+```
+
+## Project Structure
+
+```
+agent-factory-mcp/
+├── src/
+│   ├── index.ts              # Server entry point
+│   ├── constants.ts          # Constants
+│   ├── providers/            # Provider implementations
+│   │   ├── base-cli.provider.ts
+│   │   ├── generic-cli.provider.ts
+│   │   └── qwen.provider.ts
+│   ├── tools/                # Tool registry and factory
+│   │   ├── registry.ts
+│   │   ├── dynamic-tool-factory.ts
+│   │   └── simple-tools.ts
+│   ├── parsers/              # CLI help parser
+│   │   └── help-parser.ts
+│   ├── types/                # TypeScript types
+│   │   └── cli-metadata.ts
+│   └── utils/                # Utilities
+│       ├── configLoader.ts
+│       ├── commandExecutor.ts
+│       ├── logger.ts
+│       └── progressManager.ts
+├── test/                     # Test files
+├── ai-tools.json.example     # Example configuration
+├── schema.json               # JSON schema
+└── Taskfile.yml              # Task runner configuration
+```
 
 ## Contributing
 
@@ -208,6 +286,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
-**Disclaimer:** This is an unofficial, third-party tool and is not affiliated with, endorsed, or sponsored by Alibaba Cloud or the Qwen team.
+MIT License - see [LICENSE](LICENSE) for details.

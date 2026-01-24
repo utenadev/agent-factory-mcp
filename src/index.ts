@@ -33,7 +33,7 @@ import {
 
 const server = new Server(
   {
-    name: "qwencode-mcp",
+    name: "agent-factory-mcp",
     version: "1.0.0",
   },
   {
