@@ -162,10 +162,7 @@ export class HelpParser {
   /**
    * Parse help output into intermediate result structure.
    */
-  private static parseHelpOutput(
-    helpOutput: string,
-    options: ParserOptions
-  ): ParseResult {
+  private static parseHelpOutput(helpOutput: string, options: ParserOptions): ParseResult {
     const lines = helpOutput.split("\n");
     const result: ParseResult = {
       description: "",
@@ -175,72 +172,102 @@ export class HelpParser {
       subcommands: [],
     };
 
-    let currentSection: "description" | "positionals" | "options" | "commands" =
-      "description";
+    let currentSection: "description" | "positionals" | "options" | "commands" = "description";
     let descriptionBuffer: string[] = [];
 
     for (const line of lines) {
-      // Detect section transitions
-      if (/^(?:Commands|Available Commands):$/.test(line)) {
-        currentSection = "commands";
-        result.hasSubcommands = true;
-        continue;
-      }
-      if (/^Positionals:$/.test(line)) {
-        currentSection = "positionals";
-        continue;
-      }
-      if (/^Options:$/.test(line)) {
-        currentSection = "options";
+      const sectionChange = this.detectSectionChange(line);
+      if (sectionChange) {
+        currentSection = sectionChange;
+        if (sectionChange === "commands") {
+          result.hasSubcommands = true;
+        }
         continue;
       }
 
-      // Skip empty lines and section dividers
-      if (line.trim() === "" || /^---+$/.test(line)) {
+      if (this.shouldSkipLine(line)) {
         continue;
       }
 
-      // Process based on current section
-      switch (currentSection) {
-        case "description":
-          // Collect description lines until we hit a section header
-          if (!line.startsWith(" ") && !line.startsWith("\t") && line.trim() !== "") {
-            descriptionBuffer.push(line.trim());
-          }
-          break;
-
-        case "positionals":
-          const positional = this.parsePositional(line, options.positionalRegex);
-          if (positional) {
-            result.positionals.push(positional);
-          }
-          break;
-
-        case "options":
-          const option = this.parseOption(line, options.optionRegex);
-          if (option) {
-            result.options.push(option);
-          }
-          break;
-
-        case "commands":
-          const subcommand = this.parseSubcommand(line);
-          if (subcommand) {
-            result.subcommands.push(subcommand);
-          }
-          break;
-      }
+      this.processLineBySection(line, currentSection, options, result, descriptionBuffer);
     }
 
-    // Use collected description lines (skip usage line if present)
-    result.description = descriptionBuffer
+    result.description = this.buildDescription(descriptionBuffer);
+    return result;
+  }
+
+  /**
+   * Detect if a line indicates a section change.
+   */
+  private static detectSectionChange(line: string): "description" | "positionals" | "options" | "commands" | null {
+    if (/^(?:Commands|Available Commands):$/.test(line)) {
+      return "commands";
+    }
+    if (/^Positionals:$/.test(line)) {
+      return "positionals";
+    }
+    if (/^Options:$/.test(line)) {
+      return "options";
+    }
+    return null;
+  }
+
+  /**
+   * Check if a line should be skipped (empty or divider).
+   */
+  private static shouldSkipLine(line: string): boolean {
+    return line.trim() === "" || /^---+$/.test(line);
+  }
+
+  /**
+   * Process a line based on the current section.
+   */
+  private static processLineBySection(
+    line: string,
+    currentSection: "description" | "positionals" | "options" | "commands",
+    options: ParserOptions,
+    result: ParseResult,
+    descriptionBuffer: string[]
+  ): void {
+    switch (currentSection) {
+      case "description":
+        if (!line.startsWith(" ") && !line.startsWith("\t") && line.trim() !== "") {
+          descriptionBuffer.push(line.trim());
+        }
+        break;
+
+      case "positionals":
+        const positional = this.parsePositional(line, options.positionalRegex);
+        if (positional) {
+          result.positionals.push(positional);
+        }
+        break;
+
+      case "options":
+        const option = this.parseOption(line, options.optionRegex);
+        if (option) {
+          result.options.push(option);
+        }
+        break;
+
+      case "commands":
+        const subcommand = this.parseSubcommand(line);
+        if (subcommand) {
+          result.subcommands.push(subcommand);
+        }
+        break;
+    }
+  }
+
+  /**
+   * Build final description from buffer.
+   */
+  private static buildDescription(buffer: string[]): string {
+    return buffer
       .filter((line) => !line.startsWith("Usage:"))
       .join(" ")
       .trim()
-      // Remove duplicate spaces
       .replace(/\s+/g, " ");
-
-    return result;
   }
 
   /**
@@ -282,31 +309,20 @@ export class HelpParser {
    * - "command sub   Description" (commander.js style with base command repeated)
    * - "subcommand   Description" (when base command is implied)
    */
-  private static parseSubcommand(
-    line: string
-  ): SubcommandInfo | null {
-    // Remove leading whitespace for analysis
+  private static parseSubcommand(line: string): SubcommandInfo | null {
     const trimmed = line.trim();
 
-    // Filter out section headers and divider lines
-    if (!trimmed || trimmed.startsWith("---") || /^Commands|Options|Arguments|Positionals:/.test(trimmed)) {
+    // Filter out invalid lines
+    if (!this.isValidSubcommandLine(trimmed)) {
       return null;
     }
 
-    // Skip lines that look like usage patterns with brackets only (first line is often the default command)
-    if (/^\w+\s+\[.*?\]\s*$/.test(trimmed)) {
-      return null;
-    }
-
-    // Try to match: "base_command subcommand   Description"
-    // The description typically starts after a few spaces
-    const parts = trimmed.split(/\s{2,}/); // Split on 2+ spaces
-
+    // Split on 2+ spaces to separate command from description
+    const parts = trimmed.split(/\s{2,}/);
     if (parts.length < 2) {
       return null;
     }
 
-    // First part might be "command sub" or just "sub"
     const firstPart = parts[0]?.trim();
     const description = parts[1]?.trim();
 
@@ -314,31 +330,8 @@ export class HelpParser {
       return null;
     }
 
-    // Extract subcommand name from first part
-    const words = firstPart.split(/\s+/);
-
-    let subcommandName: string | undefined;
-
-    if (words.length === 1) {
-      // Simple case: just the subcommand name
-      subcommandName = words[0];
-    } else if (words.length >= 2) {
-      // "base_command subcommand" format - use the second word
-      subcommandName = words[1];
-    } else {
-      return null;
-    }
-
-    if (!subcommandName) {
-      return null;
-    }
-
-    if (!subcommandName) {
-      return null;
-    }
-
-    // Skip if this looks like a file extension or technical term
-    if (/^\.[a-z]+$/.test(subcommandName) || /^[<>[\]]+$/.test(subcommandName)) {
+    const subcommandName = this.extractSubcommandName(firstPart);
+    if (!subcommandName || this.isInvalidSubcommandName(subcommandName)) {
       return null;
     }
 
@@ -346,6 +339,50 @@ export class HelpParser {
       name: subcommandName,
       description,
     };
+  }
+
+  /**
+   * Check if a line is a valid subcommand line.
+   */
+  private static isValidSubcommandLine(line: string): boolean {
+    if (!line || line.startsWith("---")) {
+      return false;
+    }
+
+    // Filter out section headers
+    if (/^Commands|Options|Arguments|Positionals:/.test(line)) {
+      return false;
+    }
+
+    // Skip lines that look like usage patterns with brackets
+    return !/^\w+\s+\[.*?\]\s*$/.test(line);
+  }
+
+  /**
+   * Extract subcommand name from command part.
+   * Handles both "subcommand" and "base_command subcommand" formats.
+   */
+  private static extractSubcommandName(commandPart: string): string | undefined {
+    const words = commandPart.split(/\s+/);
+
+    if (words.length === 0) {
+      return undefined;
+    }
+
+    // Simple case: just the subcommand name
+    if (words.length === 1) {
+      return words[0];
+    }
+
+    // "base_command subcommand" format - use the second word
+    return words[1];
+  }
+
+  /**
+   * Check if a subcommand name is invalid (file extension or technical term).
+   */
+  private static isInvalidSubcommandName(name: string): boolean {
+    return /^\.[a-z]+$/.test(name) || /^[<>[\]]+$/.test(name);
   }
 
   /**
@@ -367,67 +404,91 @@ export class HelpParser {
       return null;
     }
 
-    // Extract the description and metadata
-    const cleanedDescription = rest
-      .replace(this.TYPE_REGEX, "") // Remove type hints
-      .replace(this.CHOICES_REGEX, "") // Remove choices
-      .replace(this.DEFAULT_REGEX, "") // Remove default
-      .replace(this.DEPRECATED_REGEX, "") // Remove deprecated note
-      .trim();
-
+    const cleanedDescription = this.extractOptionDescription(rest);
     if (!cleanedDescription) {
       return null;
     }
 
-    // Infer type from type hints
-    const typeMatch = rest.match(this.TYPE_REGEX);
-    let type: OptionType = "string";
-    if (typeMatch) {
-      const typeStr = typeMatch[0];
-      if (typeStr === "[boolean]") {
-        type = "boolean";
-      } else if (typeStr === "[number]") {
-        type = "number";
-      } else if (typeStr === "[array]") {
-        type = "string"; // Arrays are treated as comma-separated strings
-      }
-    } else {
-      // Heuristic: if no type hint, infer from description
-      type = this.inferTypeFromDescription(cleanedDescription, longFlag);
-    }
-
-    // Extract choices
-    const choicesMatch = rest.match(this.CHOICES_REGEX);
-    let choices: (string | number)[] | undefined;
-    if (choicesMatch && choicesMatch[1]) {
-      const choicesStr = choicesMatch[1];
-      choices = choicesStr
-        .split(",")
-        .map((c) => c.trim().replace(/['"]/g, ""))
-        .filter((c) => c !== "");
-    }
-
-    // Extract default value
-    const defaultMatch = rest.match(this.DEFAULT_REGEX);
-    let defaultValue: string | number | boolean | undefined;
-    if (defaultMatch && defaultMatch[1]) {
-      defaultValue = this.parseDefaultValue(defaultMatch[1], type);
-    }
-
-    // Check if deprecated
-    const isDeprecated = this.DEPRECATED_REGEX.test(rest);
-
-    const parsedOption: ParsedOption = {
+    return {
       shortFlag,
       longFlag,
       description: cleanedDescription,
-      type,
-      defaultValue,
-      choices,
-      deprecated: isDeprecated,
+      type: this.parseOptionType(rest, cleanedDescription, longFlag),
+      defaultValue: this.extractDefaultValue(rest, cleanedDescription),
+      choices: this.extractChoices(rest),
+      deprecated: this.DEPRECATED_REGEX.test(rest),
     };
+  }
 
-    return parsedOption;
+  /**
+   * Extract clean description from option line by removing metadata.
+   */
+  private static extractOptionDescription(rest: string): string {
+    return rest
+      .replace(this.TYPE_REGEX, "")
+      .replace(this.CHOICES_REGEX, "")
+      .replace(this.DEFAULT_REGEX, "")
+      .replace(this.DEPRECATED_REGEX, "")
+      .trim();
+  }
+
+  /**
+   * Parse option type from type hints or infer from description.
+   */
+  private static parseOptionType(rest: string, description: string, longFlag: string): OptionType {
+    const typeMatch = rest.match(this.TYPE_REGEX);
+
+    if (typeMatch) {
+      return this.getTypeFromString(typeMatch[0]);
+    }
+
+    // Heuristic: if no type hint, infer from description
+    return this.inferTypeFromDescription(description, longFlag);
+  }
+
+  /**
+   * Convert type hint string to OptionType.
+   */
+  private static getTypeFromString(typeStr: string): OptionType {
+    if (typeStr === "[boolean]") {
+      return "boolean";
+    }
+    if (typeStr === "[number]") {
+      return "number";
+    }
+    // Arrays are treated as comma-separated strings
+    return "string";
+  }
+
+  /**
+   * Extract choices array from option line.
+   */
+  private static extractChoices(rest: string): (string | number)[] | undefined {
+    const choicesMatch = rest.match(this.CHOICES_REGEX);
+    if (!choicesMatch || !choicesMatch[1]) {
+      return undefined;
+    }
+
+    return choicesMatch[1]
+      .split(",")
+      .map((c) => c.trim().replace(/['"]/g, ""))
+      .filter((c) => c !== "");
+  }
+
+  /**
+   * Extract default value from option line.
+   */
+  private static extractDefaultValue(rest: string, description: string): string | number | boolean | undefined {
+    const defaultMatch = rest.match(this.DEFAULT_REGEX);
+    if (!defaultMatch || !defaultMatch[1]) {
+      return undefined;
+    }
+
+    // Determine type for parsing
+    const typeMatch = rest.match(this.TYPE_REGEX);
+    const type = typeMatch ? this.getTypeFromString(typeMatch[0]) : "string";
+
+    return this.parseDefaultValue(defaultMatch[1], type);
   }
 
   /**
@@ -459,56 +520,67 @@ export class HelpParser {
   /**
    * Infer option type from description and flag name.
    */
-  private static inferTypeFromDescription(
-    description: string,
-    flag: string
-  ): OptionType {
+  private static inferTypeFromDescription(description: string, flag: string): OptionType {
     const lowerDesc = description.toLowerCase();
     const lowerFlag = flag.toLowerCase();
 
-    // Boolean indicators
-    if (
-      /^(enable|disable|show|hide|print|verbose|quiet|debug|trace)/.test(
-        lowerDesc
-      ) ||
-      /^(?:is|are|has|have)/.test(lowerDesc) ||
-      /\?$/.test(description.trim())
-    ) {
+    // Check for boolean type patterns
+    if (this.matchesBooleanPattern(lowerDesc, description)) {
       return "boolean";
     }
 
-    // Number indicators
-    if (/\d+/.test(flag) || /port|count|num|timeout|limit/.test(lowerFlag)) {
+    // Check for number type patterns
+    if (this.matchesNumberPattern(flag, lowerFlag)) {
       return "number";
     }
 
-    // File/path indicators
-    if (
-      /file|path|dir|directory|config|output|input/i.test(lowerFlag) ||
-      /file|path|directory|folder/i.test(lowerDesc) ||
-      /\.(json|yaml|yml|txt|md|toml|conf|cfg)$/.test(description)
-    ) {
+    // Check for file type patterns
+    if (this.matchesFilePattern(lowerFlag, lowerDesc, description)) {
       return "file";
     }
 
-    // Default to string
     return "string";
+  }
+
+  /**
+   * Check if description matches boolean type patterns.
+   */
+  private static matchesBooleanPattern(lowerDesc: string, originalDesc: string): boolean {
+    const booleanPrefixes = /^(enable|disable|show|hide|print|verbose|quiet|debug|trace)/;
+    const booleanVerbs = /^(?:is|are|has|have)/;
+    const hasQuestionMark = /\?$/.test(originalDesc.trim());
+
+    return booleanPrefixes.test(lowerDesc) || booleanVerbs.test(lowerDesc) || hasQuestionMark;
+  }
+
+  /**
+   * Check if flag matches number type patterns.
+   */
+  private static matchesNumberPattern(flag: string, lowerFlag: string): boolean {
+    const hasDigits = /\d+/.test(flag);
+    const numberKeywords = /port|count|num|timeout|limit/;
+
+    return hasDigits || numberKeywords.test(lowerFlag);
+  }
+
+  /**
+   * Check if flag or description matches file type patterns.
+   */
+  private static matchesFilePattern(lowerFlag: string, lowerDesc: string, originalDesc: string): boolean {
+    const fileKeywords = /file|path|dir|directory|config|output|input/i;
+    const fileDescKeywords = /file|path|directory|folder/i;
+    const fileExtensions = /\.(json|yaml|yml|txt|md|toml|conf|cfg)$/;
+
+    return fileKeywords.test(lowerFlag) ||
+           fileDescKeywords.test(lowerDesc) ||
+           fileExtensions.test(originalDesc);
   }
 
   /**
    * Parse default value string to appropriate type.
    */
-  private static parseDefaultValue(
-    valueStr: string,
-    type: OptionType
-  ): string | number | boolean {
-    let trimmed = valueStr.trim();
-
-    // Remove quotes from string values
-    if ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-        (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
-      trimmed = trimmed.slice(1, -1);
-    }
+  private static parseDefaultValue(valueStr: string, type: OptionType): string | number | boolean {
+    const trimmed = this.stripQuotes(valueStr.trim());
 
     switch (type) {
       case "boolean":
@@ -519,5 +591,16 @@ export class HelpParser {
       default:
         return trimmed;
     }
+  }
+
+  /**
+   * Remove surrounding quotes from a string.
+   */
+  private static stripQuotes(value: string): string {
+    if ((value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'"))) {
+      return value.slice(1, -1);
+    }
+    return value;
   }
 }
