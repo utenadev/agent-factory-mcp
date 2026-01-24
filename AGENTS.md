@@ -7,7 +7,7 @@
 ---
 
 ## OVERVIEW
-Agent Factory MCP is a **universal Model Context Protocol (MCP) server** that dynamically discovers and registers CLI tools as MCP tools. It transforms any CLI tool (e.g., Qwen, Ollama, Aider) into an AI-powered agent with persona configuration. Built with TypeScript, it leverages a **metadata-driven design** to generate MCP tools from CLI tool metadata.
+Agent Factory MCP is a **universal Model Context Protocol (MCP) server** for **AI Agent tools**. It dynamically discovers and registers **AI CLI tools** (e.g., Qwen, Ollama, Aider) as MCP tools, transforming them into AI-powered agents with persona configuration. Built with TypeScript, it leverages a **metadata-driven design** to generate MCP tools from AI tool metadata.
 
 ---
 

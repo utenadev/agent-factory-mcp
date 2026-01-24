@@ -7,7 +7,7 @@
 
 </div>
 
-> A universal Model Context Protocol (MCP) server that automatically discovers and registers CLI tools as MCP tools. Transform any CLI tool (Qwen, Ollama, Aider, etc.) into an AI-powered agent with persona configuration.
+> A universal Model Context Protocol (MCP) server for **AI Agent tools**. It automatically discovers and registers **AI CLI tools** (Qwen, Ollama, Aider, etc.) as MCP tools, transforming them into AI-powered agents with persona configuration.
 
 ## Features
 

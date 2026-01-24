@@ -3,6 +3,21 @@ import { HelpParser } from "../parsers/help-parser.js";
 import type { CliToolMetadata } from "../types/cli-metadata.js";
 import { Logger } from "./logger.js";
 
+// AI Agentツールのホワイトリスト
+const AI_TOOL_WHITELIST = new Set([
+  "qwen",
+  "ollama",
+  "aider",
+  "gemini",
+  "openai",
+  "anthropic",
+  "mistral",
+  "llama",
+  "codellama",
+  "phi",
+  "deepseek",
+]);
+
 /**
  * Scans the user's PATH for executable CLI tools.
  * @returns List of executable file paths.
@@ -59,13 +74,15 @@ export async function checkToolCompatibility(
   executablePath: string
 ): Promise<CliToolMetadata | null> {
   try {
+    const commandName = executablePath.split("/").pop() || executablePath;
+    if (!AI_TOOL_WHITELIST.has(commandName)) {
+      return null;
+    }
+
     const helpOutput = execSync(`"${executablePath}" --help 2> /dev/null || echo ""`, {
       timeout: 5000,
     }).toString();
-    const metadata = HelpParser.parse(
-      executablePath.split("/").pop() || executablePath,
-      helpOutput
-    );
+    const metadata = HelpParser.parse(commandName, helpOutput);
 
     if (!metadata || !metadata.toolName || !metadata.command) {
       return null;
