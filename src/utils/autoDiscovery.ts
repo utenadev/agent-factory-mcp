@@ -6,16 +6,11 @@ import { Logger } from "./logger.js";
 // AI Agentツールのホワイトリスト
 const AI_TOOL_WHITELIST = new Set([
   "qwen",
-  "ollama",
   "aider",
   "gemini",
-  "openai",
-  "anthropic",
-  "mistral",
-  "llama",
-  "codellama",
-  "phi",
-  "deepseek",
+  "opencode",
+  "crush",
+  "vibe",
 ]);
 
 /**
