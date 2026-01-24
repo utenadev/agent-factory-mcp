@@ -3,6 +3,8 @@ import { Tool, Prompt } from "@modelcontextprotocol/sdk/types.js"; // Each tool 
 import { ToolArguments } from "../constants.js";
 import { ZodTypeAny, ZodError } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import { AIProvider } from "../providers/base-cli.provider.js";
+import { DynamicToolFactory } from "./dynamic-tool-factory.js";
 
 export interface UnifiedTool {
   name: string;
@@ -23,6 +25,12 @@ export interface UnifiedTool {
 }
 
 export const toolRegistry: UnifiedTool[] = [];
+
+export function registerProvider(provider: AIProvider): void {
+  const tool = DynamicToolFactory.createTool(provider);
+  toolRegistry.push(tool);
+}
+
 export function toolExists(toolName: string): boolean {
   return toolRegistry.some(t => t.name === toolName);
 }
