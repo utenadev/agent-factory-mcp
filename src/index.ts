@@ -17,7 +17,8 @@ import {
   CallToolResult,
 } from "@modelcontextprotocol/sdk/types.js";
 import { Logger } from "./utils/logger.js";
-import { PROTOCOL, ToolArguments } from "./constants.js";
+import { ProgressManager } from "./utils/progressManager.js";
+import { ToolArguments } from "./constants.js";
 
 import {
   getToolDefinitions,
@@ -31,7 +32,8 @@ const server = new Server(
   {
     name: "qwencode-mcp",
     version: "1.0.0",
-  },{
+  },
+  {
     capabilities: {
       tools: {},
       prompts: {},
@@ -40,133 +42,6 @@ const server = new Server(
     },
   },
 );
-
-let isProcessing = false;
-let currentOperationName = "";
-let latestOutput = "";
-
-// Progress notification parameters type
-interface ProgressNotificationParams {
-  progressToken: string | number;
-  progress: number;
-  total?: number;
-  message?: string;
-  [key: string]: unknown; // Index signature for MCP SDK compatibility
-}
-
-/**
- * @param progressToken The progress token provided by the client
- * @param progress The current progress value
- * @param total Optional total value
- * @param message Optional status message
- */
-async function sendProgressNotification(
-  progressToken: string | number | undefined,
-  progress: number,
-  total?: number,
-  message?: string
-) {
-  if (!progressToken) return; // Only send if client requested progress
-
-  try {
-    const params: ProgressNotificationParams = {
-      progressToken,
-      progress
-    };
-
-    if (total !== undefined) params.total = total; // future cache progress
-    if (message) params.message = message;
-
-    await server.notification({
-      method: PROTOCOL.NOTIFICATIONS.PROGRESS,
-      params
-    });
-  } catch (error) {
-    Logger.error("Failed to send progress notification:", error);
-  }
-}
-
-function startProgressUpdates(
-  operationName: string,
-  progressToken?: string | number
-): { interval: NodeJS.Timeout; progressToken?: string | number } {
-  isProcessing = true;
-  currentOperationName = operationName;
-  latestOutput = ""; // Reset latest output
-
-  const progressMessages = [
-    `🧠 ${operationName} - Qwen is analyzing your request...`,
-    `📊 ${operationName} - Processing files and generating insights...`,
-    `✨ ${operationName} - Creating structured response for your review...`,
-    `⏱️ ${operationName} - Large analysis in progress (this is normal for big requests)...`,
-    `🔍 ${operationName} - Still working... Qwen takes time for quality results...`,
-  ];
-
-  let messageIndex = 0;
-  let progress = 0;
-
-  // Send immediate acknowledgment if progress requested
-  if (progressToken) {
-    sendProgressNotification(
-      progressToken,
-      0,
-      undefined, // No total - indeterminate progress
-      `🔍 Starting ${operationName}`
-    );
-  }
-
-  // Keep client alive with periodic updates
-  const progressInterval = setInterval(async () => {
-    if (isProcessing && progressToken) {
-      // Simply increment progress value
-      progress += 1;
-
-      // Include latest output if available
-      const baseMessage = progressMessages[messageIndex % progressMessages.length];
-      const outputPreview = latestOutput.slice(-150).trim(); // Last 150 chars
-      const message = outputPreview
-        ? `${baseMessage}\n📝 Output: ...${outputPreview}`
-        : baseMessage;
-
-      await sendProgressNotification(
-        progressToken,
-        progress,
-        undefined, // No total - indeterminate progress
-        message
-      );
-      messageIndex++;
-    } else if (!isProcessing) {
-      clearInterval(progressInterval);
-    }
-  }, PROTOCOL.KEEPALIVE_INTERVAL); // Every 25 seconds
-
-  // Return result without undefined progressToken property
-  const result: { interval: NodeJS.Timeout; progressToken?: string | number } = { interval: progressInterval };
-  if (progressToken !== undefined) {
-    result.progressToken = progressToken;
-  }
-  return result;
-}
-
-function stopProgressUpdates(
-  progressData: { interval: NodeJS.Timeout; progressToken?: string | number },
-  success: boolean = true
-) {
-  const operationName = currentOperationName; // Store before clearing
-  isProcessing = false;
-  currentOperationName = "";
-  clearInterval(progressData.interval);
-
-  // Send final progress notification if client requested progress
-  if (progressData.progressToken) {
-    sendProgressNotification(
-      progressData.progressToken,
-      100,
-      100,
-      success ? `✅ ${operationName} completed successfully` : `❌ ${operationName} failed`
-    );
-  }
-}
 
 // tools/list
 server.setRequestHandler(ListToolsRequestSchema, async (request: ListToolsRequest): Promise<{ tools: Tool[] }> => {
@@ -178,53 +53,42 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
   const toolName: string = request.params.name;
 
   if (toolExists(toolName)) {
-    // Check if client requested progress updates
     // Type guard for _meta property (MCP extension)
-    const paramsWithMeta = request.params as { name: string; arguments?: ToolArguments; _meta?: { progressToken?: string | number } };
+    const paramsWithMeta = request.params as {
+      name: string;
+      arguments?: ToolArguments;
+      _meta?: { progressToken?: string | number };
+    };
     const progressToken = paramsWithMeta._meta?.progressToken;
 
     // Start progress updates if client requested them
-    const progressData = startProgressUpdates(toolName, progressToken);
+    const progressData = ProgressManager.startUpdates(server, toolName, progressToken);
 
     try {
-      // Get prompt and other parameters from arguments with proper typing
       const args: ToolArguments = (request.params.arguments as ToolArguments) || {};
 
       Logger.toolInvocation(toolName, request.params.arguments);
 
       // Execute the tool using the unified registry with progress callback
       const result = await executeTool(toolName, args, (newOutput) => {
-        latestOutput = newOutput;
+        ProgressManager.updateOutput(newOutput);
       });
 
-      // Stop progress updates
-      stopProgressUpdates(progressData, true);
+      ProgressManager.stopUpdates(server, progressData, true);
 
       return {
-        content: [
-          {
-            type: "text",
-            text: result,
-          },
-        ],
+        content: [{ type: "text", text: result }],
         isError: false,
       };
     } catch (error) {
-      // Stop progress updates on error
-      stopProgressUpdates(progressData, false);
+      ProgressManager.stopUpdates(server, progressData, false);
 
       Logger.error(`Error in tool '${toolName}':`, error);
 
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
 
       return {
-        content: [
-          {
-            type: "text",
-            text: `Error executing ${toolName}: ${errorMessage}`,
-          },
-        ],
+        content: [{ type: "text", text: `Error executing ${toolName}: ${errorMessage}` }],
         isError: true,
       };
     }
