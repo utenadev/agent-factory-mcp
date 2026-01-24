@@ -106,7 +106,7 @@
 - `GenericCliProvider.isCommandAvailable` の改善（which + --version フォールバック）
 
 #### カテゴリの汎用化
-- `category` 型を `"qwen"` から `"ai"` に変更
+- `category` 型を "qwen" から "ai" に変更
 - 複数の AI プロバイダーを統一的に扱えるように
 
 ### リポジトリ名の変更とリネーム
@@ -209,3 +209,57 @@
 - 4f5cf80 feat: Add systemPrompt support and CLI argument tool registration
 - 1d7f807 docs: Rename to agent-factory-mcp and refresh README
 - bf3441b docs: Complete documentation refresh for agent-factory-mcp
+
+---
+
+## 2026-01-24 (深夜)
+
+### Auto-Discovery機能の検証と改善
+
+#### 1. ホワイトリストの更新
+- `src/utils/autoDiscovery.ts` の `AI_TOOL_WHITELIST` をプロジェクトの要件に合わせて更新
+- 対象ツール: `qwen`, `aider`, `gemini`, `opencode`, `crush`, `vibe`
+
+#### 2. テストの修正とBun対応
+- `test/autoDiscovery.test.ts` を Bun test スタイルにリファクタリング
+- モックの実装を修正し、新しいホワイトリストに基づいてテストが通過することを確認
+
+#### 3. 実環境での検証
+- 手動検証用スクリプト `run-discovery.ts` を作成し、実際の PATH 環境下での動作を確認
+- 以下のツールが正常に検出されることを確認:
+  - opencode
+  - gemini
+  - qwen
+  - aider
+  - vibe
+
+**検証に使用したスクリプト (run-discovery.ts):**
+```typescript
+import { discoverCompatibleTools } from "./src/utils/autoDiscovery.js";
+import { Logger } from "./src/utils/logger.js";
+
+async function runDiscovery() {
+  console.log("Starting Auto-Discovery...");
+  console.log("Searching for: qwen, aider, gemini, opencode, crush, vibe\n");
+
+  const tools = await discoverCompatibleTools();
+
+  if (tools.length === 0) {
+    console.log("No compatible tools found in your PATH.");
+  } else {
+    console.log(`Found ${tools.length} compatible tool(s):`);
+    tools.forEach(tool => {
+      console.log(`- ${tool.toolName} (command: ${tool.command})`);
+      console.log(`  Description: ${tool.description}`);
+      if (tool.options.length > 0) {
+        console.log(`  Options: ${tool.options.length} detected`);
+      }
+      console.log("");
+    });
+  }
+}
+
+runDiscovery().catch(err => {
+  console.error("Discovery failed:", err);
+});
+```
