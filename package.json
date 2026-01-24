@@ -9,10 +9,14 @@
   },
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "tsc && node dist/index.js",
-    "test": "node --test test/**/*.test.js",
-    "lint": "tsc --noEmit"
+    "start": "bun run dist/index.js",
+    "dev": "tsc && bun run dist/index.js",
+    "test": "bun test test/**/*.test.js",
+    "type-check": "tsc --noEmit",
+    "lint": "bun biome lint src",
+    "lint:fix": "bun biome lint src --write",
+    "format": "bun biome format src --write",
+    "format:check": "bun biome format src"
   },
   "keywords": [
     "mcp",
@@ -26,7 +30,7 @@
   "author": "Qwen Team",
   "license": "MIT",
   "engines": {
-    "node": ">=16.0.0"
+    "bun": ">=1.0.0"
   },
   "files": [
     "dist/",
@@ -41,9 +45,9 @@
     "zod-to-json-schema": "^3.24.6"
   },
   "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
     "@types/inquirer": "^9.0.0",
     "@types/node": "^20.0.0",
-    "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   },
   "publishConfig": {

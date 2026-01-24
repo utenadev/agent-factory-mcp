@@ -1,11 +1,5 @@
-import { executeCommand } from './commandExecutor.js';
-import { Logger } from './logger.js';
-import {
-  ERROR_MESSAGES,
-  STATUS_MESSAGES,
-  MODELS,
-  QWENCODE
-} from '../constants.js';
+import { executeCommand } from "./commandExecutor.js";
+import { QWENCODE } from "../constants.js";
 
 export async function executeQwenCLI(
   prompt: string,
@@ -20,9 +14,7 @@ export async function executeQwenCLI(
   }
 
   // Ensure @ symbols work cross-platform by wrapping in quotes if needed
-  const finalPrompt = prompt.includes('@') && !prompt.startsWith('"')
-    ? `"${prompt}"`
-    : prompt;
+  const finalPrompt = prompt.includes("@") && !prompt.startsWith('"') ? `"${prompt}"` : prompt;
 
   args.push(finalPrompt);
 

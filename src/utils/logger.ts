@@ -1,13 +1,9 @@
-import chalk from 'chalk';
-import { LOG_PREFIX } from '../constants.js';
+import chalk from "chalk";
+import { LOG_PREFIX } from "../constants.js";
 
 // Check if colors should be disabled
 const shouldDisableColors = (): boolean => {
-  return (
-    process.env.NO_COLOR !== undefined ||
-    process.env.TERM === 'dumb' ||
-    !process.stdin.isTTY
-  );
+  return process.env.NO_COLOR !== undefined || process.env.TERM === "dumb" || !process.stdin.isTTY;
 };
 
 // Disable chalk colors if needed

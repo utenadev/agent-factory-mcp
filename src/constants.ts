@@ -3,7 +3,8 @@ export const LOG_PREFIX = "[QWENCMP]";
 
 // Error messages
 export const ERROR_MESSAGES = {
-  NO_PROMPT_PROVIDED: "Please provide a prompt for analysis. Use @ syntax to include files (e.g., '@largefile.js explain what this does') or ask general questions",
+  NO_PROMPT_PROVIDED:
+    "Please provide a prompt for analysis. Use @ syntax to include files (e.g., '@largefile.js explain what this does') or ask general questions",
 } as const;
 
 // Status messages

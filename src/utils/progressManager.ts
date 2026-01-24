@@ -1,4 +1,4 @@
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import type { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { PROTOCOL } from "../constants.js";
 import { Logger } from "./logger.js";
 
@@ -38,7 +38,7 @@ export const ProgressManager = {
     try {
       const params: ProgressNotificationParams = {
         progressToken,
-        progress
+        progress,
       };
 
       if (total !== undefined) params.total = total;
@@ -46,7 +46,7 @@ export const ProgressManager = {
 
       await server.notification({
         method: PROTOCOL.NOTIFICATIONS.PROGRESS,
-        params
+        params,
       });
     } catch (error) {
       Logger.error("Failed to send progress notification:", error);
@@ -85,13 +85,7 @@ export const ProgressManager = {
 
     // Send immediate acknowledgment
     if (progressToken) {
-      this.sendNotification(
-        server,
-        progressToken,
-        0,
-        undefined,
-        `🔍 Starting ${operationName}`
-      );
+      this.sendNotification(server, progressToken, 0, undefined, `🔍 Starting ${operationName}`);
     }
 
     // Keep client alive with periodic updates
@@ -105,13 +99,7 @@ export const ProgressManager = {
           ? `${baseMessage}\n📝 Output: ...${outputPreview}`
           : baseMessage;
 
-        await this.sendNotification(
-          server,
-          progressToken,
-          progress,
-          undefined,
-          message
-        );
+        await this.sendNotification(server, progressToken, progress, undefined, message);
         messageIndex++;
       } else if (!isProcessing) {
         clearInterval(progressInterval);
@@ -128,11 +116,7 @@ export const ProgressManager = {
   /**
    * Stop progress updates for an operation
    */
-  stopUpdates(
-    server: Server,
-    progressData: ProgressData,
-    success: boolean = true
-  ): void {
+  stopUpdates(server: Server, progressData: ProgressData, success = true): void {
     const operationName = currentOperationName;
     isProcessing = false;
     currentOperationName = "";

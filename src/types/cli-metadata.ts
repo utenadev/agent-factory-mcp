@@ -1,16 +1,16 @@
-import { z } from 'zod';
+
 
 /**
  * Defines the type of value an option accepts.
  */
-export type OptionType = 'string' | 'number' | 'boolean';
+export type OptionType = "string" | "number" | "boolean";
 
 /**
  * Defines a single CLI option (flag).
  */
 export interface CliOption {
-  name: string;           // The property name for the tool argument (e.g., "model")
-  flag: string;           // The actual CLI flag (e.g., "-m" or "--model")
+  name: string; // The property name for the tool argument (e.g., "model")
+  flag: string; // The actual CLI flag (e.g., "-m" or "--model")
   type: OptionType;
   description: string;
   required?: boolean;
@@ -34,13 +34,13 @@ export interface CliArgument {
  * This is the blueprint for generating the MCP tool.
  */
 export interface CliToolMetadata {
-  toolName: string;       // Name of the MCP tool (e.g., "ask-qwen")
-  description: string;    // Description for the MCP tool
-  command: string;        // The base CLI command (e.g., "qwen")
-  
+  toolName: string; // Name of the MCP tool (e.g., "ask-qwen")
+  description: string; // Description for the MCP tool
+  command: string; // The base CLI command (e.g., "qwen")
+
   // Positional argument (usually just one for the prompt)
   argument?: CliArgument;
-  
+
   // Key-value options
   options: CliOption[];
 }

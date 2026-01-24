@@ -1,8 +1,8 @@
-import { z } from 'zod';
-import { UnifiedTool } from './registry.js';
-import { AIProvider } from '../providers/base-cli.provider.js';
-import { CliToolMetadata, CliOption } from '../types/cli-metadata.js';
-import { STATUS_MESSAGES } from '../constants.js';
+import { z } from "zod";
+import type { UnifiedTool } from "./registry.js";
+import type { AIProvider } from "../providers/base-cli.provider.js";
+import type { CliToolMetadata, } from "../types/cli-metadata.js";
+import { STATUS_MESSAGES } from "../constants.js";
 
 export class DynamicToolFactory {
   static createTool(provider: AIProvider): UnifiedTool {
@@ -11,7 +11,7 @@ export class DynamicToolFactory {
     return {
       name: metadata.toolName,
       description: metadata.description,
-      category: 'qwen', // To be generalized later to 'ai' or provider.id
+      category: "qwen", // To be generalized later to 'ai' or provider.id
       zodSchema: this.createZodSchema(metadata),
       prompt: {
         description: `Execute '${metadata.command}' to get AI response.`,
@@ -20,7 +20,7 @@ export class DynamicToolFactory {
         const result = await provider.execute(args, onProgress);
         // We might want to standardize the output format here
         return `${STATUS_MESSAGES.QWEN_RESPONSE}\n${result}`;
-      }
+      },
     };
   }
 
@@ -32,9 +32,9 @@ export class DynamicToolFactory {
       let schema: z.ZodTypeAny;
 
       // Type mapping
-      if (option.type === 'boolean') {
+      if (option.type === "boolean") {
         schema = z.boolean();
-      } else if (option.type === 'number') {
+      } else if (option.type === "number") {
         schema = z.number();
       } else {
         schema = z.string();
@@ -44,7 +44,7 @@ export class DynamicToolFactory {
       if (option.choices && option.choices.length > 0) {
         // Zod enum requires at least one value
         // For simplicity, assuming string choices for now if type is string
-        if (option.type === 'string') {
+        if (option.type === "string") {
           const stringChoices = option.choices.map(String);
           if (stringChoices.length > 0) {
             schema = z.enum(stringChoices as [string, ...string[]]);
@@ -65,11 +65,11 @@ export class DynamicToolFactory {
 
     // 2. Add Positional Argument
     if (metadata.argument) {
-      let argSchema: z.ZodTypeAny = metadata.argument.type === 'number' ? z.number() : z.string();
-      
+      let argSchema: z.ZodTypeAny = metadata.argument.type === "number" ? z.number() : z.string();
+
       if (metadata.argument.required) {
-        if (metadata.argument.type === 'string') {
-             argSchema = (argSchema as z.ZodString).min(1); // minimal validation for required strings
+        if (metadata.argument.type === "string") {
+          argSchema = (argSchema as z.ZodString).min(1); // minimal validation for required strings
         }
       } else {
         argSchema = argSchema.optional();

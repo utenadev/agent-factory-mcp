@@ -1,0 +1,77 @@
+version: '3'
+
+vars:
+  BUN_BIN: bun
+
+tasks:
+  setup:
+    desc: Install dependencies
+    cmds:
+      - "{{.BUN_BIN}} install"
+
+  dev:
+    desc: Start development server (build and run)
+    cmds:
+      - "{{.BUN_BIN}} run dev"
+
+  build:
+    desc: Build TypeScript to dist/
+    cmds:
+      - "{{.BUN_BIN}} run build"
+
+  start:
+    desc: Run the built server
+    cmds:
+      - "{{.BUN_BIN}} run start"
+
+  test:
+    desc: Run tests
+    cmds:
+      - "{{.BUN_BIN}} test"
+
+  type-check:
+    desc: Run TypeScript type checking
+    cmds:
+      - "{{.BUN_BIN}} run type-check"
+
+  lint:
+    desc: Run Biome lint
+    cmds:
+      - "{{.BUN_BIN}} biome lint src"
+
+  lint-fix:
+    desc: Run Biome lint and fix issues
+    cmds:
+      - "{{.BUN_BIN}} biome lint src --write"
+
+  format:
+    desc: Run Biome format
+    cmds:
+      - "{{.BUN_BIN}} biome format src --write"
+
+  format-check:
+    desc: Check formatting with Biome
+    cmds:
+      - "{{.BUN_BIN}} biome format src"
+
+  check:
+    desc: Run all quality checks (type-check, lint, test)
+    cmds:
+      - task: type-check
+      - task: lint
+      - task: test
+
+  clean:
+    desc: Clean build artifacts and dependencies
+    cmds:
+      - rm -rf dist
+      - rm -rf node_modules
+      - rm -rf bun.lockb
+
+  all:
+    desc: Clean, setup, build, and check
+    cmds:
+      - task: clean
+      - task: setup
+      - task: build
+      - task: check

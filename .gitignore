@@ -1,11 +1,13 @@
 # Dependencies
 node_modules/
+bin/
 
 # Build output
 dist/
 
 # Lock file
 package-lock.json
+bun.lockb
 
 # IDE
 .vscode/
