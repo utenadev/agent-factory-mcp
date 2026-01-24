@@ -41,14 +41,17 @@ const server = new Server(
   },
 );
 
-let isProcessing = false; let currentOperationName = ""; let latestOutput = "";
+let isProcessing = false;
+let currentOperationName = "";
+let latestOutput = "";
 
-async function sendNotification(method: string, params: any) {
-  try {
-    await server.notification({ method, params });
-  } catch (error) {
-    Logger.error("notification failed: ", error);
-  }
+// Progress notification parameters type
+interface ProgressNotificationParams {
+  progressToken: string | number;
+  progress: number;
+  total?: number;
+  message?: string;
+  [key: string]: unknown; // Index signature for MCP SDK compatibility
 }
 
 /**
@@ -66,7 +69,7 @@ async function sendProgressNotification(
   if (!progressToken) return; // Only send if client requested progress
 
   try {
-    const params: any = {
+    const params: ProgressNotificationParams = {
       progressToken,
       progress
     };
@@ -176,7 +179,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest)
 
   if (toolExists(toolName)) {
     // Check if client requested progress updates
-    const progressToken = (request.params as any)._meta?.progressToken;
+    // Type guard for _meta property (MCP extension)
+    const paramsWithMeta = request.params as { name: string; arguments?: ToolArguments; _meta?: { progressToken?: string | number } };
+    const progressToken = paramsWithMeta._meta?.progressToken;
 
     // Start progress updates if client requested them
     const progressData = startProgressUpdates(toolName, progressToken);

@@ -1,6 +1,20 @@
 import chalk from 'chalk';
 import { LOG_PREFIX } from '../constants.js';
 
+// Check if colors should be disabled
+const shouldDisableColors = (): boolean => {
+  return (
+    process.env.NO_COLOR !== undefined ||
+    process.env.TERM === 'dumb' ||
+    !process.stdin.isTTY
+  );
+};
+
+// Disable chalk colors if needed
+if (shouldDisableColors()) {
+  chalk.level = 0;
+}
+
 export class Logger {
   static debug(...args: any[]) {
     if (process.env.DEBUG) {
