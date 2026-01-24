@@ -1,0 +1,12 @@
+{
+  "$schema": "./schema.json",
+  "version": "1.0",
+  "tools": [
+    {
+      "command": "qwen",
+      "enabled": true,
+      "description": "Qwen AI assistant for code analysis and generation",
+      "alias": "ask-qwen"
+    }
+  ]
+}

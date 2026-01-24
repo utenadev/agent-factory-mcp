@@ -18,6 +18,9 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { Logger } from "./utils/logger.js";
 import { ProgressManager } from "./utils/progressManager.js";
+import { ConfigLoader } from "./utils/configLoader.js";
+import { registerProvider } from "./tools/registry.js";
+import { GenericCliProvider } from "./providers/generic-cli.provider.js";
 import type { ToolArguments } from "./constants.js";
 
 import {
@@ -141,9 +144,90 @@ server.setRequestHandler(
 // Start the server
 async function main() {
   Logger.debug("init qwencode-mcp-server");
+
+  // Load configuration file and register tools
+  await initializeFromConfig();
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   Logger.debug("qwencode-mcp-server listening on stdio");
+}
+
+/**
+ * Initialize tools from configuration file.
+ *
+ * This function:
+ * 1. Searches for ai-tools.json or similar config files
+ * 2. Loads and validates the configuration
+ * 3. For each enabled tool, creates a GenericCliProvider
+ * 4. Registers the provider with the tool registry
+ */
+async function initializeFromConfig(): Promise<void> {
+  const loadResult = ConfigLoader.load();
+
+  // No config file found - this is okay, use defaults
+  if (!loadResult.configPath) {
+    Logger.debug("No configuration file found, using default tools only");
+    return;
+  }
+
+  // Config file exists but failed to load
+  if (loadResult.error) {
+    Logger.error(`Failed to load config from ${loadResult.configPath}:`, loadResult.error);
+    return;
+  }
+
+  Logger.debug(`Loaded configuration from ${loadResult.configPath}`);
+
+  const config = loadResult.config!;
+  const tools = config.tools || [];
+
+  if (tools.length === 0) {
+    Logger.debug("Configuration contains no tools");
+    return;
+  }
+
+  // Resolve and register each tool
+  const resolved = await ConfigLoader.resolveTools(tools);
+
+  let registeredCount = 0;
+  let skippedCount = 0;
+
+  for (const resolvedTool of resolved) {
+    const { config, toolName, isAvailable } = resolvedTool;
+
+    // Skip tools that aren't available
+    if (!isAvailable) {
+      Logger.warn(
+        `Tool '${toolName}' (command: ${config.command}) is not available in PATH - skipping`
+      );
+      skippedCount++;
+      continue;
+    }
+
+    try {
+      // Create provider using GenericCliProvider
+      const provider = await GenericCliProvider.create(config);
+
+      if (!provider) {
+        Logger.warn(`Failed to create provider for '${toolName}' - skipping`);
+        skippedCount++;
+        continue;
+      }
+
+      // Register the provider
+      registerProvider(provider);
+      registeredCount++;
+      Logger.debug(`Registered tool: ${toolName} (command: ${config.command})`);
+    } catch (error) {
+      Logger.error(`Failed to register tool '${toolName}':`, error);
+      skippedCount++;
+    }
+  }
+
+  Logger.info(
+    `Configuration loaded: ${registeredCount} tools registered, ${skippedCount} skipped`
+  );
 }
 main().catch(error => {
   Logger.error("Fatal error:", error);
