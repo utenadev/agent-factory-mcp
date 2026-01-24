@@ -29,7 +29,7 @@ import {
 
 const server = new Server(
   {
-    name: "qwen-cli-mcp",
+    name: "qwencode-mcp",
     version: "1.0.0",
   },{
     capabilities: {
@@ -252,7 +252,7 @@ server.setRequestHandler(GetPromptRequestSchema, async (request: GetPromptReques
 
 // Start the server
 async function main() {
-  Logger.debug("init qwen-mcp-tool");
+  Logger.debug("init qwencode-mcp-server");
   const transport = new StdioServerTransport(); await server.connect(transport);
-  Logger.debug("qwen-mcp-tool listening on stdio");
+  Logger.debug("qwencode-mcp-server listening on stdio");
 } main().catch((error) => {Logger.error("Fatal error:", error); process.exit(1); });

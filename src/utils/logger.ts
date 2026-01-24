@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { LOG_PREFIX } from '../src/constants.js';
+import { LOG_PREFIX } from '../constants.js';
 
 export class Logger {
   static debug(...args: any[]) {

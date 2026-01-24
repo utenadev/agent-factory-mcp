@@ -1,11 +1,11 @@
 {
-  "name": "qwen-mcp-tool",
+  "name": "qwencode-mcp-server",
   "version": "1.0.0",
-  "description": "MCP server for Qwen CLI integration",
+  "description": "MCP server for QwenCode integration",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "qwen-mcp": "dist/index.js"
+    "qwencode-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc",
@@ -18,7 +18,8 @@
     "mcp",
     "modelcontextprotocol",
     "qwen",
-    "cli",
+    "qwen-code",
+    "qwencode",
     "ai",
     "llm"
   ],

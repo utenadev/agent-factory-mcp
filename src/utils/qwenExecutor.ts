@@ -4,7 +4,7 @@ import {
   ERROR_MESSAGES,
   STATUS_MESSAGES,
   MODELS,
-  CLI
+  QWENCODE
 } from '../constants.js';
 
 export async function executeQwenCLI(
@@ -13,10 +13,10 @@ export async function executeQwenCLI(
   onProgress?: (newOutput: string) => void
 ): Promise<string> {
   const args = [];
-  
+
   // Add model flag if specified
-  if (model) { 
-    args.push(CLI.FLAGS.MODEL, model); 
+  if (model) {
+    args.push(QWENCODE.FLAGS.MODEL, model);
   }
 
   // Ensure @ symbols work cross-platform by wrapping in quotes if needed
@@ -27,9 +27,9 @@ export async function executeQwenCLI(
   args.push(finalPrompt);
 
   try {
-    return await executeCommand(CLI.COMMANDS.QWEN, args, onProgress);
+    return await executeCommand(QWENCODE.COMMANDS.QWEN, args, onProgress);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new Error(`Qwen CLI execution failed: ${errorMessage}`);
+    throw new Error(`QwenCode execution failed: ${errorMessage}`);
   }
 }

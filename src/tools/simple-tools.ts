@@ -26,15 +26,15 @@ const helpArgsSchema = z.object({
 
 export const helpTool: UnifiedTool = {
   name: "Help",
-  description: "Shows the Qwen CLI help text",
+  description: "Shows the QwenCode help text",
   zodSchema: helpArgsSchema,
   prompt: {
-    description: "Display help information for Qwen CLI",
+    description: "Display help information for QwenCode",
   },
   category: 'simple',
   execute: async () => {
-    return `Qwen MCP Tool Help:
-    
+    return `QwenCode MCP Tool Help:
+
 Available tools:
 - ask-qwen: Execute Qwen AI to get responses. Supports model selection.
 - Ping: A simple test tool that echoes back a message

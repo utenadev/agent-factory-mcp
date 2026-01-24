@@ -1,5 +1,5 @@
 // Logging
-export const LOG_PREFIX = "[QMCP]";
+export const LOG_PREFIX = "[QWENCMP]";
 
 // Error messages
 export const ERROR_MESSAGES = {
@@ -48,8 +48,8 @@ export const PROTOCOL = {
   KEEPALIVE_INTERVAL: 25000, // 25 seconds
 } as const;
 
-// CLI Constants
-export const CLI = {
+// QwenCode Constants
+export const QWENCODE = {
   // Command names
   COMMANDS: {
     QWEN: "qwen",

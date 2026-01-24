@@ -1,4 +1,4 @@
-# Qwen MCP ツール
+# QwenCode MCP ツール
 
 <div align="center">
 
@@ -7,30 +7,47 @@
 
 </div>
 
-> Qwen CLI と対話するためのモデルコンテキストプロトコル（MCP）サーバー。AIが `@` 構文を使用して大規模なファイルやコードベースを直接分析できるように、Qwen の強力な機能を活用できます。
+> QwenCode と対話するためのモデルコンテキストプロトコル（MCP）サーバー。AIが `@` 構文を使用して大規模なファイルやコードベースを直接分析できるように、Qwen の強力な機能を活用できます。
 
 - 他の AI アシスタント経由で Qwen に自然言語で質問
 - AI ワークフロー内で Qwen の強力な分析機能を直接利用
 
 **注**: このプロジェクトは [jamubc/gemini-mcp-tool](https://github.com/jamubc/gemini-mcp-tool) に触発され、Qwen との統合用に調整されています。
 
+## リポジトリ構造
+
+```
+qwencode-mcp-server/
+├── LICENSE
+├── package.json
+├── README.ja.md
+├── README.md
+├── scripts
+├── src
+│   ├── constants.ts
+│   ├── index.ts
+│   ├── tools
+│   └── utils
+└── tsconfig.json
+```
+
 ## 前提条件
 
 このツールを使用する前に、以下のものがインストールされていることを確認してください：
 
 1. **[Node.js](https://nodejs.org/)** (v16.0.0 以上)
-2. **[Qwen CLI](https://github.com/QwenLM/Qwen)** がインストールされ、設定されていること
+2. **[QwenCode](https://github.com/QwenLM/Qwen)** がインストールされ、設定されていること
 
 
 ### 1行でのセットアップ
 
 ```bash
-claude mcp add qwen-cli -- npx -y qwen-mcp-tool
+claude mcp add qwen -- npx -y qwen-mcp-tool
 ```
 
 ### インストールの確認
 
-Claude Code 内で `/mcp` と入力し、qwen-cli MCP が有効になっていることを確認します。
+Claude Code 内で `/mcp` と入力し、qwen MCP が有効になっていることを確認します。
 
 ---
 
@@ -40,7 +57,7 @@ Claude Desktop ですでに設定済みの場合：
 
 1. Claude Desktop 設定ファイルに追加：
 ```json
-"qwen-cli": {
+"qwen": {
   "command": "npx",
   "args": ["-y", "qwen-mcp-tool"]
 }
@@ -62,7 +79,7 @@ Claude Desktop 設定ファイルに以下を追加：
 ```json
 {
   "mcpServers": {
-    "qwen-cli": {
+    "qwen": {
       "command": "npx",
       "args": ["-y", "qwen-mcp-tool"]
     }
@@ -77,8 +94,8 @@ Claude Desktop 設定ファイルに以下を追加：
 ```json
 {
   "mcpServers": {
-    "qwen-cli": {
-      "command": "qwen-mcp"
+    "qwen": {
+      "command": "qwencode-mcp"
     }
   }
 }
@@ -97,7 +114,7 @@ Claude Desktop 設定ファイルに以下を追加：
 ## 例ワークフロー
 
 - **自然言語**: "index.html を説明するために qwen を使用", "巨大なプロジェクトを qwen を使って理解する", "最新ニュースを探すために qwen に依頼"
-- **Claude Code**: `/qwen-cli` と入力すると、コマンドが Claude Code のインターフェースに表示されます。
+- **Claude Code**: `/qwen` と入力すると、コマンドが Claude Code のインターフェースに表示されます。
 
 ## 使用例
 
@@ -122,7 +139,7 @@ Claude Desktop 設定ファイルに以下を追加：
   - **`model`** （オプション）: 使用する Qwen モデル。デフォルトは `qwen-max`。
 
 - **`Ping`**: 簡単なテストツールでメッセージをエコーします。
-- **`Help`**: Qwen CLI ヘルプテキストを表示します。
+- **`Help`**: QwenCode ヘルプテキストを表示します。
 
 ### スラッシュコマンド（ユーザー向け）
 
@@ -130,7 +147,7 @@ Claude Desktop 設定ファイルに以下を追加：
 
 - **/analyze**: ファイルやディレクトリを Qwen で分析するか、一般的な質問に回答。
   - **`prompt`** （必須）: 分析プロンプト。`@` 構文を使用してファイルを含めます（例: `/analyze prompt:@src/ このディレクトリを要約`）または一般的な質問（例: `/analyze prompt:最新ニュースを検索してください`）。
-- **/help**: Qwen CLI ヘルプ情報を表示。
+- **/help**: QwenCode ヘルプ情報を表示。
 - **/ping**: サーバーへの接続をテスト。
   - **`message`** （オプション）: エコーするメッセージ。
 
