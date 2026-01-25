@@ -20,6 +20,19 @@
 - **マルチプロバイダー**: 複数の AI ツール（Claude, Gemini, Qwen など）を同時に使用できます。
 - **ランタイム登録**: MCP プロトコル経由で動的に新しいツールを追加できます。
 
+### 自動検出機能 (Auto Discovery)
+
+サーバーは起動時にシステム `PATH` をスキャンし、既知の AI ツールを検出して自動的に登録します。設定ファイルは不要です。
+現在サポートされているホワイトリスト済みツール:
+- **Claude** (`claude`)
+- **OpenCode** (`opencode`)
+- **Gemini** (`gemini`)
+- **Qwen** (`qwen`)
+- **Aider** (`aider`)
+- **Ollama** (`ollama`)
+
+*注: `ai-tools.json` 設定ファイルを作成することで、この挙動を上書きできます。*
+
 ## アーキテクチャ
 
 ```mermaid

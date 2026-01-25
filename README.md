@@ -20,6 +20,19 @@
 - **Multi-Provider**: Use multiple AI tools simultaneously (Claude, Gemini, Qwen, etc.)
 - **Runtime Registration**: Add new tools dynamically via MCP protocol
 
+### Auto Discovery
+
+The server automatically scans your system `PATH` for known AI tools and registers them without any configuration.
+Currently supported tools in the whitelist:
+- **Claude** (`claude`)
+- **OpenCode** (`opencode`)
+- **Gemini** (`gemini`)
+- **Qwen** (`qwen`)
+- **Aider** (`aider`)
+- **Ollama** (`ollama`)
+
+*Note: You can override this behavior by creating an `ai-tools.json` config file.*
+
 ## Architecture
 
 ```mermaid
