@@ -7,96 +7,97 @@
 
 </div>
 
-> CLI ツールを自動発見して MCP ツールとして登録する汎用モデルコンテキストプロトコル（MCP）サーバー。任意の CLI ツール（Qwen、Ollama、Aider など）をペルソナ設定付きの AI エージェントに変換できます。
+> **AI エージェントツール**のための汎用 Model Context Protocol (MCP) サーバーです。**AI CLI ツール** (Qwen, Ollama, Aider など) を自動検出し、MCP ツールとして登録することで、ペルソナ設定を持った AI エージェントへと変換します。
 
 ## 特徴
 
-- **自動発見**: CLI の `--help` 出力を自動的に解析してツールメタデータを生成
-- **ゼロコード登録**: 設定ファイルまたはコマンドライン引数でツールを登録
-- **ペルソナサポート**: システムプロンプトを設定して専門化された AI エージェントを作成
-- **マルチプロバイダー**: 複数の AI ツールを同時に使用（Qwen、Gemini、Aider など）
-- **ランタイム登録**: MCP プロトコル経由で新しいツールを動的に追加
+- **自動検出 (Auto-Discovery)**: `PATH` 内の互換性のある AI CLI ツール（安全なホワイトリストに基づく）を自動的に検出し、MCP ツールとして登録します。
+- **ヘルプ出力解析**: CLI の `--help` 出力を解析してツールのメタデータを生成します。
+- **ゼロコード登録**: 設定ファイルやコマンドライン引数を使って簡単にツールを登録できます。
+- **ペルソナサポート**: システムプロンプトを設定して、特定の役割（ペルソナ）を持った AI エージェントを作成できます。
+- **マルチプロバイダー**: 複数の AI ツール（Qwen, Gemini, Aider など）を同時に使用できます。
+- **ランタイム登録**: MCP プロトコル経由で動的に新しいツールを追加できます。
 
 ## アーキテクチャ
 
 ```mermaid
 graph TB
-    subgraph "MCP クライアント"
+    subgraph "MCP Client"
         A[Claude Desktop / Claude Code]
     end
 
-    subgraph "Agent Factory MCP サーバー"
-        B[サーバーエントリーポイント]
-        C[設定ローダー]
-        D[ツールレジストリ]
-        E[動的ツールファクトリー]
+    subgraph "Agent Factory MCP Server"
+        B[Server Entry Point]
+        C[Config Loader]
+        D[Tool Registry]
+        E[Dynamic Tool Factory]
 
-        subgraph "プロバイダー"
+        subgraph "Providers"
             F[QwenProvider]
             G[GenericCliProvider]
         end
 
-        subgraph "パーサー"
+        subgraph "Parsers"
             H[HelpParser]
         end
     end
 
-    subgraph "CLI ツール"
+    subgraph "CLI Tools"
         I[qwen]
         J[gemini]
         K[aider]
         L[ollama]
-        M[...任意の CLI ツール]
+        M[...any CLI tool]
     end
 
     A -->|stdio| B
     B --> C
-    B -->|CLI 引数| G
-    C -->|設定読み込み| D
-    G -->|作成| D
+    B -->|CLI args| G
+    C -->|load config| D
+    G -->|create| D
     D --> E
-    E -->|生成| F
-    F -->|実行| I
-    F -->|実行| J
-    F -->|実行| K
-    G -->|--help 解析| H
-    H -->|メタデータ| G
+    E -->|generate| F
+    F -->|execute| I
+    F -->|execute| J
+    F -->|execute| K
+    G -->|parse --help| H
+    H -->|metadata| G
 ```
 
 ## 状態遷移
 
 ```mermaid
 stateDiagram-v2
-    [*] --> 初期化
+    [*] --> Initialization
 
-    初期化 --> 設定読み込み: 起動
-    初期化 --> CLI引数処理: CLI 引数あり
+    Initialization --> LoadConfig: Start
+    Initialization --> ProcessCLIArgs: CLI args provided
 
-    設定読み込み --> CLI引数処理: 設定読み完了
-    CLI引数処理 --> プロバイダー登録
+    LoadConfig --> ProcessCLIArgs: Config loaded
+    ProcessCLIArgs --> RegisterProviders
 
-    プロバイダー登録 --> プロバイダー作成: ツール利用可能
-    プロバイダー登録 --> プロバイダースキップ: ツール未検出
+    RegisterProviders --> ProviderCreated: Tool available
+    RegisterProviders --> ProviderSkipped: Tool not found
 
-    プロバイダー作成 --> ツール生成
-    プロバイダースキップ --> プロバイダー登録: 次のツール
+    ProviderCreated --> GenerateTools
+    ProviderSkipped --> RegisterProviders: Next tool
 
-    ツール生成 --> ツール登録
-    ツール登録 --> プロバイダー登録: 次のツール
+    GenerateTools --> ToolRegistered
+    ToolRegistered --> RegisterProviders: Next tool
 
-    プロバイダー登録 --> サーバー稼働: すべてのツール処理完了
-    サーバー稼働 --> [*]: MCP リクエスト待機中
+    RegisterProviders --> ServerRunning: All tools processed
+    ServerRunning --> [*]: Ready for MCP requests
 
-    サーバー稼働 --> ランタイム登録: register_cli_tool 呼び出し
-    ランタイム登録 --> サーバー稼働: ツール追加
+    ServerRunning --> RuntimeRegistration: register_cli_tool called
+    RuntimeRegistration --> ServerRunning: Tool added
 
-    note right of 設定読み込み
-        ai-tools.json または
-        .qwencoderc.json を読み込み
+    note right of LoadConfig
+        Loads ai-tools.json
+        or .qwencoderc.json
     end note
 
-    note right of CLI引数処理
-        次のような CLI 引数を解析:
+    note right of ProcessCLIArgs
+        Parses CLI args like:
         npx agent-factory-mcp qwen gemini aider
     end note
 ```
@@ -104,13 +105,13 @@ stateDiagram-v2
 ## インストール
 
 ```bash
-# npm 経由でインストール
+# npm でインストール
 npm install -g agent-factory-mcp
 
-# または npx でインストールなしで使用
+# インストールせずに npx で使用
 npx agent-factory-mcp
 
-# または bun で使用
+# bun で使用
 bunx agent-factory-mcp
 ```
 
@@ -118,7 +119,7 @@ bunx agent-factory-mcp
 
 ### 方法 1: コマンドライン引数
 
-CLI 引数で直接ツールを登録：
+CLI 引数で直接ツールを登録できます：
 
 ```bash
 npx agent-factory-mcp qwen gemini aider
@@ -126,7 +127,9 @@ npx agent-factory-mcp qwen gemini aider
 
 ### 方法 2: 設定ファイル
 
-プロジェクトルートに `ai-tools.json` を作成：
+プロジェクトルートに `ai-tools.json` を作成します。**設定ファイルが存在しない場合**、サーバーは起動時に `PATH` から互換性のある CLI ツール（`qwen`, `opencode`, `gemini` など）を**自動検出**し、このファイルに追加します。
+
+> **注意**: 自動検出は設定ファイルが見つからない場合にのみ実行されます。新しいツールのインストールやバージョンの更新後に検出を再実行したい場合は、`ai-tools.json` ファイルを削除してサーバーを再起動してください。
 
 ```json
 {
@@ -136,14 +139,14 @@ npx agent-factory-mcp qwen gemini aider
     {
       "command": "qwen",
       "alias": "code-reviewer",
-      "description": "セキュリティとパフォーマンスに焦点を当てたコードレビューエキスパート",
-      "systemPrompt": "あなたはシニアコードレビュアーです。セキュリティ脆弱性、パフォーマンス問題、保守性に焦点を当ててください。"
+      "description": "セキュリティとパフォーマンスに重点を置くコードレビューの専門家",
+      "systemPrompt": "あなたはシニアコードレビュアーです。セキュリティの脆弱性、パフォーマンスの問題、保守性に焦点を当ててください。"
     },
     {
       "command": "qwen",
       "alias": "doc-writer",
-      "description": "技術ドキュメントスペシャリスト",
-      "systemPrompt": "あなたは開発者向けに明確で簡潔な技術ドキュメントを書きます。"
+      "description": "技術ドキュメントのスペシャリスト",
+      "systemPrompt": "あなたは開発者向けに明確で簡潔な技術ドキュメントを作成します。"
     }
   ]
 }
@@ -151,23 +154,23 @@ npx agent-factory-mcp qwen gemini aider
 
 ### 方法 3: ランタイム登録
 
-`register_cli_tool` MCP ツールを使用：
+`register_cli_tool` MCP ツールを使用します：
 
 ```
 register_cli_tool({
   command: "ollama",
   alias: "local-llm",
-  description: "Ollama経由でローカルLLMモデルを実行",
-  systemPrompt: "あなたはローカルで実行されている役立つAIアシスタントです。",
+  description: "Ollama 経由でローカル LLM モデルを実行",
+  systemPrompt: "あなたはローカルで動作する役立つ AI アシスタントです。",
   persist: true
 })
 ```
 
-## MCP クライアント設定
+## MCP クライアントのセットアップ
 
 ### Claude Desktop
 
-Claude Desktop 設定ファイルに追加：
+Claude Desktop の設定ファイルに追加します：
 
 **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
@@ -192,46 +195,46 @@ claude mcp add agent-factory -- npx agent-factory-mcp qwen gemini aider
 
 ## 使用例
 
-### 専門化されたエージェントの使用
+### 専門エージェントの使用
 
 ```bash
 # セキュリティ重視のコードレビュー
-"code-reviewerを使ってこのファイルのセキュリティ問題を分析してください"
+"Use code-reviewer to analyze this file for security issues"
 
 # ドキュメント生成
-"doc-writerにこのモジュールのAPIドキュメントを生成させます"
+"Ask doc-writer to generate API docs for this module"
 
-# 一般的なAI支援
-"ask-qwenを使ってこのコードを説明してください"
+# 一般的な AI アシスタンス
+"Use ask-qwen to explain this code"
 ```
 
-### 複数のAIツール
+### 複数の AI ツールの使用
 
 ```bash
-# タスクに応じて異なるAIを使用
-"gemini-visionを使ってこのスクリーンショットを分析してください"
-"aiderを使ってこの関数をリファクタリングしてください"
-"qwenを使って変更点をレビューしてください"
+# タスクに応じて異なる AI を使用
+"Use gemini-vision to analyze this screenshot"
+"Use aider to refactor this function"
+"Use qwen to review the changes"
 ```
 
 ## 設定スキーマ
 
-完全な設定スキーマは `schema.json` を参照してください：
+完全な設定スキーマについては `schema.json` を参照してください：
 
 | フィールド | 型 | 必須 | 説明 |
-|-----------|------|------|------|
-| `command` | string | ✅ | 登録するCLIコマンド（例: "qwen", "ollama"） |
-| `enabled` | boolean | ❌ | ツールが有効かどうか（デフォルト: true） |
-| `alias` | string | ❌ | カスタムツール名（デフォルト: "ask-{command}"） |
-| `description` | string | ❌ | カスタムツール説明 |
-| `systemPrompt` | string | ❌ | AIペルソナ用のシステムプロンプト |
+|-------|------|----------|-------------|
+| `command` | string | ✅ | 登録する CLI コマンド (例: "qwen", "ollama") |
+| `enabled` | boolean | ❌ | ツールが有効かどうか (デフォルト: true) |
+| `alias` | string | ❌ | ツールのカスタム名 (デフォルト: "ask-{command}") |
+| `description` | string | ❌ | ツールのカスタム説明 |
+| `systemPrompt` | string | ❌ | AI ペルソナ用のシステムプロンプト |
 | `providerType` | string | ❌ | プロバイダータイプ: "cli-auto" または "custom" |
-| `defaultArgs` | object | ❌ | デフォルト引数値 |
+| `defaultArgs` | object | ❌ | 引数のデフォルト値 |
 
 ## 開発
 
 ```bash
-# 依存関係をインストール
+# 依存関係のインストール
 bun install
 
 # ビルド
@@ -248,6 +251,9 @@ bun run lint
 
 # フォーマット
 bun run format
+
+# 自動検出の手動実行
+bun run auto-discover
 ```
 
 ## プロジェクト構造
@@ -261,13 +267,13 @@ agent-factory-mcp/
 │   │   ├── base-cli.provider.ts
 │   │   ├── generic-cli.provider.ts
 │   │   └── qwen.provider.ts
-│   ├── tools/                # ツールレジストリとファクトリー
+│   ├── tools/                # ツールレジストリとファクトリ
 │   │   ├── registry.ts
 │   │   ├── dynamic-tool-factory.ts
 │   │   └── simple-tools.ts
-│   ├── parsers/              # CLIヘルプパーサー
+│   ├── parsers/              # CLI ヘルプパーサー
 │   │   └── help-parser.ts
-│   ├── types/                # TypeScript型定義
+│   ├── types/                # TypeScript 型定義
 │   │   └── cli-metadata.ts
 │   └── utils/                # ユーティリティ
 │       ├── configLoader.ts
@@ -276,14 +282,14 @@ agent-factory-mcp/
 │       └── progressManager.ts
 ├── test/                     # テストファイル
 ├── ai-tools.json.example     # 設定例
-├── schema.json               # JSONスキーマ
+├── schema.json               # JSON スキーマ
 └── Taskfile.yml              # タスクランナー設定
 ```
 
-## コントリビューション
+## 貢献
 
-貢献大歓迎です！お気軽にプルリクエストを送信してください。
+プルリクエストを歓迎します！
 
 ## ライセンス
 
-MIT ライセンス - 詳細は [LICENSE](LICENSE) を参照してください。
+MIT License - 詳細は [LICENSE](LICENSE) を参照してください。

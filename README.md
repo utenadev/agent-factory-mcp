@@ -127,7 +127,9 @@ npx agent-factory-mcp qwen gemini aider
 
 ### Method 2: Configuration File
 
-Create `ai-tools.json` in your project root. The server will also **auto-discover** compatible CLI tools (like `qwen`, `opencode`, `gemini`) from your `PATH` and add them to this file on startup:
+Create `ai-tools.json` in your project root. The server will also **auto-discover** compatible CLI tools (like `qwen`, `opencode`, `gemini`) from your `PATH` and add them to this file on startup **if no configuration file exists**.
+
+> **Note**: Auto-discovery only runs when no configuration file is found. To re-run discovery (e.g., after installing a new tool or updating a tool version), simply delete the `ai-tools.json` file and restart the server.
 
 ```json
 {
