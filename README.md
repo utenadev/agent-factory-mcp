@@ -11,7 +11,7 @@
 
 ## Features
 
-- **Auto-Discovery**: Automatically scan `PATH` for CLI tools and register them as MCP tools
+- **Auto-Discovery**: Automatically detect compatible AI CLI tools (from a safety whitelist) in `PATH` and register them as MCP tools
 - **Help Output Parsing**: Parse CLI `--help` output to generate tool metadata
 - **Zero-Code Registration**: Register tools via config file or command-line arguments
 - **Persona Support**: Configure system prompts to create specialized AI agents
@@ -127,7 +127,7 @@ npx agent-factory-mcp qwen gemini aider
 
 ### Method 2: Configuration File
 
-Create `ai-tools.json` in your project root. The server will also **auto-discover** compatible CLI tools from your `PATH` and add them to this file on startup:
+Create `ai-tools.json` in your project root. The server will also **auto-discover** compatible CLI tools (like `qwen`, `opencode`, `gemini`) from your `PATH` and add them to this file on startup:
 
 ```json
 {

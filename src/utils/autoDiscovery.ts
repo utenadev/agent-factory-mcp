@@ -4,9 +4,10 @@ import type { CliToolMetadata } from "../types/cli-metadata.js";
 import { Logger } from "./logger.js";
 
 // AI Agentツールのホワイトリスト
-// 今回のテスト用に opencode のみに限定
+// 安全性とパフォーマンスのために、既知のAIツールのみを検出対象とします
 const AI_TOOL_WHITELIST = new Set([
   "opencode",
+  "gemini",
 ]);
 
 /**
