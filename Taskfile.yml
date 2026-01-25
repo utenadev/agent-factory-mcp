@@ -25,9 +25,19 @@ tasks:
       - "{{.BUN_BIN}} run start"
 
   test:
-    desc: Run tests
+    desc: Run all tests
     cmds:
-      - "{{.BUN_BIN}} test"
+      - "{{.BUN_BIN}} run test"
+
+  test-unit:
+    desc: Run unit tests (exclude E2E)
+    cmds:
+      - "{{.BUN_BIN}} run test:unit"
+
+  test-e2e:
+    desc: Run E2E tests (requires AI tools)
+    cmds:
+      - "{{.BUN_BIN}} run test:e2e"
 
   type-check:
     desc: Run TypeScript type checking
@@ -37,29 +47,29 @@ tasks:
   lint:
     desc: Run Biome lint
     cmds:
-      - "{{.BUN_BIN}} biome lint src"
+      - "{{.BUN_BIN}} x @biomejs/biome lint src"
 
   lint-fix:
     desc: Run Biome lint and fix issues
     cmds:
-      - "{{.BUN_BIN}} biome lint src --write"
+      - "{{.BUN_BIN}} x @biomejs/biome lint src --write"
 
   format:
     desc: Run Biome format
     cmds:
-      - "{{.BUN_BIN}} biome format src --write"
+      - "{{.BUN_BIN}} x @biomejs/biome format src --write"
 
   format-check:
     desc: Check formatting with Biome
     cmds:
-      - "{{.BUN_BIN}} biome format src"
+      - "{{.BUN_BIN}} x @biomejs/biome format src"
 
   check:
-    desc: Run all quality checks (type-check, lint, test)
+    desc: Run all quality checks (type-check, lint, unit test)
     cmds:
       - task: type-check
       - task: lint
-      - task: test
+      - task: test-unit
 
   clean:
     desc: Clean build artifacts and dependencies

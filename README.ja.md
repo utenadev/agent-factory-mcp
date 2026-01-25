@@ -454,6 +454,30 @@ await tool.execute({
 
 ## 開発
 
+このプロジェクトではタスク管理に [Task](https://taskfile.dev/) を使用しています。
+
+```bash
+# 依存関係のインストール
+task setup
+
+# ビルド
+task build
+
+# ユニットテスト実行（高速・CI向け）
+task test-unit
+
+# E2Eテスト実行（実際のAIツールのインストールが必要）
+task test-e2e
+
+# 品質チェック実行 (type-check, lint, unit test)
+task check
+
+# コードフォーマット
+task format
+```
+
+または、標準の `bun` コマンドも使用できます：
+
 ```bash
 # 依存関係のインストール
 bun install

@@ -448,6 +448,30 @@ See `schema.json` for the full configuration schema:
 
 ## Development
 
+This project uses [Task](https://taskfile.dev/) for task management.
+
+```bash
+# Install dependencies
+task setup
+
+# Build
+task build
+
+# Run unit tests (fast, CI-friendly)
+task test-unit
+
+# Run E2E tests (requires actual AI tools installed)
+task test-e2e
+
+# Run all quality checks (type-check, lint, unit test)
+task check
+
+# Format code
+task format
+```
+
+Alternatively, you can use standard `bun` commands:
+
 ```bash
 # Install dependencies
 bun install
