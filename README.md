@@ -109,13 +109,12 @@ stateDiagram-v2
 ## Installation
 
 ```bash
-# Install via npm
+# Install globally (via npm or bun)
 npm install -g agent-factory-mcp
+# or
+bun install -g agent-factory-mcp
 
-# Or use with npx without installation
-npx agent-factory-mcp
-
-# Or use with bun
+# Or use without installation
 bunx agent-factory-mcp
 ```
 
