@@ -12,10 +12,12 @@
 ## 特徴
 
 - **自動検出 (Auto-Discovery)**: `PATH` 内の互換性のある AI CLI ツール（安全なホワイトリストに基づく）を自動的に検出し、MCP ツールとして登録します。
+- **セッション管理**: `sessionId` パラメータを使用して、複数回の呼び出し間で会話を継続できます。
 - **ヘルプ出力解析**: CLI の `--help` 出力を解析してツールのメタデータを生成します。
 - **ゼロコード登録**: 設定ファイルやコマンドライン引数を使って簡単にツールを登録できます。
 - **ペルソナサポート**: システムプロンプトを設定して、特定の役割（ペルソナ）を持った AI エージェントを作成できます。
-- **マルチプロバイダー**: 複数の AI ツール（Qwen, Gemini, Aider など）を同時に使用できます。
+- **ツール単位サーバー**: 各 AI ツールを個別の MCP サーバーとして実行し、リソース管理を最適化します。
+- **マルチプロバイダー**: 複数の AI ツール（Claude, Gemini, Qwen など）を同時に使用できます。
 - **ランタイム登録**: MCP プロトコル経由で動的に新しいツールを追加できます。
 
 ## アーキテクチャ
@@ -43,11 +45,13 @@ graph TB
     end
 
     subgraph "CLI Tools"
-        I[qwen]
+        I[claude]
         J[gemini]
-        K[aider]
-        L[ollama]
-        M[...any CLI tool]
+        K[opencode]
+        L[qwen]
+        M[aider]
+        N[ollama]
+        O[...any CLI tool]
     end
 
     A -->|stdio| B
@@ -105,24 +109,49 @@ stateDiagram-v2
 ## インストール
 
 ```bash
-# npm でインストール
+# グローバルインストール（npm または bun）
 npm install -g agent-factory-mcp
+# または
+bun install -g agent-factory-mcp
 
-# インストールせずに npx で使用
-npx agent-factory-mcp
-
-# bun で使用
+# インストールせずに使用
 bunx agent-factory-mcp
 ```
 
 ## 設定
 
-### 方法 1: コマンドライン引数
+### 方法 1: コマンドライン引数（ツール単位サーバー）
 
-CLI 引数で直接ツールを登録できます：
+各 AI ツールを個別の MCP サーバーとして実行：
 
 ```bash
+# 特定のツールのみで実行
+agent-factory-mcp claude     # Claude Code のみ
+agent-factory-mcp gemini     # Gemini CLI のみ
+agent-factory-mcp opencode   # OpenCode のみ
+
+# 複数のツールを1つのサーバーで登録
 npx agent-factory-mcp qwen gemini aider
+```
+
+**Claude Desktop 設定（ツール単位セットアップ）:**
+```json
+{
+  "mcpServers": {
+    "claude": {
+      "command": "agent-factory-mcp",
+      "args": ["claude"]
+    },
+    "gemini": {
+      "command": "agent-factory-mcp",
+      "args": ["gemini"]
+    },
+    "qwen": {
+      "command": "agent-factory-mcp",
+      "args": ["qwen"]
+    }
+  }
+}
 ```
 
 ### 方法 2: 設定ファイル
@@ -176,7 +205,37 @@ Claude Desktop の設定ファイルに追加します：
 **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 **Linux**: `~/.config/claude/claude_desktop_config.json`
 
+**オプション 1: ツール単位サーバー（リソース管理に推奨）**
 ```json
+{
+  "mcpServers": {
+    "claude": {
+      "command": "agent-factory-mcp",
+      "args": ["claude"]
+    },
+    "gemini": {
+      "command": "agent-factory-mcp",
+      "args": ["gemini"]
+    },
+    "qwen": {
+      "command": "agent-factory-mcp",
+      "args": ["qwen"]
+    }
+  }
+}
+```
+
+**オプション 2: すべてのツールを1つのサーバーで**
+```json
+{
+  "mcpServers": {
+    "agent-factory": {
+      "command": "agent-factory-mcp",
+      "args": ["claude", "gemini", "qwen"]
+    }
+  }
+}
+```
 {
   "mcpServers": {
     "agent-factory": {
@@ -194,6 +253,24 @@ claude mcp add agent-factory -- npx agent-factory-mcp qwen gemini aider
 ```
 
 ## 使用例
+
+### セッション管理
+
+複数回の呼び出し間で会話を継続：
+
+```javascript
+// 最初の呼び出し - 新しいセッション
+await tool.execute({
+  prompt: "私の名前はケンです。覚えておいてください。"
+});
+
+// 2回目の呼び出し - セッションを再開
+await tool.execute({
+  sessionId: "latest",  // または特定のセッションID
+  prompt: "私の名前は何ですか？"
+});
+// レスポンス: "あなたの名前はケンです。" ✓ コンテキストが維持されている
+```
 
 ### 専門エージェントの使用
 
@@ -223,13 +300,14 @@ claude mcp add agent-factory -- npx agent-factory-mcp qwen gemini aider
 
 | フィールド | 型 | 必須 | 説明 |
 |-------|------|----------|-------------|
-| `command` | string | ✅ | 登録する CLI コマンド (例: "qwen", "ollama") |
+| `command` | string | ✅ | 登録する CLI コマンド (例: "claude", "gemini", "opencode") |
 | `enabled` | boolean | ❌ | ツールが有効かどうか (デフォルト: true) |
 | `alias` | string | ❌ | ツールのカスタム名 (デフォルト: "ask-{command}") |
 | `description` | string | ❌ | ツールのカスタム説明 |
 | `systemPrompt` | string | ❌ | AI ペルソナ用のシステムプロンプト |
 | `providerType` | string | ❌ | プロバイダータイプ: "cli-auto" または "custom" |
 | `defaultArgs` | object | ❌ | 引数のデフォルト値 |
+| `version` | string | ❌ | 自動検出されたツールバージョン |
 
 ## 開発
 

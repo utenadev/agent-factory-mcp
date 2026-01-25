@@ -202,9 +202,10 @@
 - **総合評価**: ⭐⭐⭐⭐☆ → ⭐⭐⭐⭐⭐
 
 ### コミット一覧
-- 8bdcc78 refactor: Migrate to Bun runtime and adopt Biome + go-task
-- 46a8b5e feat: Implement CLI Help Parser for auto-discovery (ROADMAP Phase 1)
-- 6c782fd feat: Add configuration-driven tool registration (ROADMAP Phase 2)
+- 7111ec8 refactor: Migrate to Bun runtime and adopt Biome + go-task
+- 8bdcc78 feat: Implement CLI Help Parser for auto-discovery (ROADMAP Phase 1)
+- 46a8b5e feat: Add configuration-driven tool registration (ROADMAP Phase 2)
+- 6c782fd feat: Add subcommand parsing support (ROADMAP Phase 3)
 - 17ec148 feat: Add runtime tool registration (ROADMAP Phase 4)
 - 4f5cf80 feat: Add systemPrompt support and CLI argument tool registration
 - 1d7f807 docs: Rename to agent-factory-mcp and refresh README
@@ -303,3 +304,244 @@ runDiscovery().catch(err => {
 - 6c81bf1 feat: enhance auto-discovery with whitelist support and documentation
 - c45afb3 feat: add tool version tracking to auto-discovery and configuration
 - b66865c docs: update README.md and sync README.ja.md
+- 5bf134e docs: update WorkingLog.md with auto-discovery optimization details
+
+---
+
+## 2026-01-25 (午後)
+
+### ドキュメントの追加と修正
+
+#### 1. プロジェクトドキュメントの追加
+- `CHANGELOG.md` を追加 - Keep a Changelog 形式の変更履歴
+- `CONTRIBUTING.md` を追加 - コントリビューションガイドライン
+  - Bun を使用した開発環境セットアップ
+  - プロジェクト構造の説明
+  - コミットメッセージ規約（Conventional Commits）
+  - Biome によるコーディング規約
+  - テストガイドライン
+  - プルリクエストプロセス
+
+#### 2. WorkingLog.md の修正
+- コミットハッシュとメッセージの不一致を修正
+  - 8bdcc78: "refactor: Migrate to Bun..." → "feat: Implement CLI Help Parser..." (ROADMAP Phase 1)
+  - 46a8b5e: "feat: Implement CLI Help Parser..." → "feat: Add configuration-driven..." (ROADMAP Phase 2)
+  - 6c782fd: "feat: Add configuration-driven..." → "feat: Add subcommand parsing support..." (ROADMAP Phase 3)
+- 7111ec8 "refactor: Migrate to Bun runtime and adopt Biome + go-task" を追加
+
+### 成果
+- **ドキュメント品質**: ⭐⭐⭐⭐ → ⭐⭐⭐⭐⭐
+- **開発者体験**: CONTRIBUTING.md により新規参入者のオンボーディングが向上
+- **履歴管理**: CHANGELOG.md によりリリースノート作成が容易に
+
+### コミット一覧
+- 95c9ad2 docs: add CHANGELOG.md and CONTRIBUTING.md
+- 4e504e1 docs: fix WorkingLog.md commit hash inconsistencies and add today's entry
+
+---
+
+## 2026-01-25 (後半)
+
+### Claude-Gemini-OpenCode MCP 統合とセッション管理機能の実装
+
+#### 1. Claude を AI_TOOL_WHITELIST に追加
+- `src/utils/autoDiscovery.ts` のホワイトリストに `"claude"` を追加
+- Auto-Discovery により以下のツールが正常に検出されることを確認:
+  - `claude` (v2.1.19) - 39オプション
+  - `opencode` (v1.1.35) - 13オプション
+  - `gemini` (v0.25.2) - 20オプション
+
+#### 2. MCP サーバーのツール単位起動を確認
+- CLI 引数でツールを指定して起動できることを確認:
+  ```bash
+  agent-factory-mcp claude     # claude のみ
+  agent-factory-mcp gemini     # gemini のみ
+  agent-factory-mcp opencode   # opencode のみ
+  ```
+- Claude Desktop 設定例:
+  ```json
+  {
+    "mcpServers": {
+      "claude": { "command": "agent-factory-mcp", "args": ["claude"] },
+      "gemini": { "command": "agent-factory-mcp", "args": ["gemini"] },
+      "opencode": { "command": "agent-factory-mcp", "args": ["opencode"] }
+    }
+  }
+  ```
+
+#### 3. セッション管理機能の実装
+- `GenericCliProvider` にセッション管理機能を追加
+- `--resume` (gemini) と `--session` (opencode) フラグを自動検出
+- 呼び元が `sessionId` パラメータを提供することで会話を継続可能に
+
+**実装内容 (`src/providers/generic-cli.provider.ts`):**
+```typescript
+// sessionId オプションの自動追加
+getMetadata(): CliToolMetadata {
+  const hasSessionFlag = this.#metadata.options.some(
+    opt => opt.name === "resume" || opt.name === "session" || ...
+  );
+  if (hasSessionFlag) {
+    return {
+      ...this.#metadata,
+      options: [
+        ...this.#metadata.options,
+        {
+          name: "sessionId",
+          flag: "--session-id",
+          type: "string",
+          description: "Session ID to resume. If not provided, starts a new session.",
+          required: false,
+        },
+      ],
+    };
+  }
+}
+
+// execute() でのセッション管理
+override async execute(args: Record<string, any>): Promise<string> {
+  const sessionId = effectiveArgs.sessionId;
+  if (sessionId && hasSessionFlag) {
+    cmdArgs.push("--session", String(sessionId));  // opencode
+  } else if (sessionId && hasResumeFlag) {
+    cmdArgs.push("--resume", String(sessionId));   // gemini
+  }
+  // ...
+}
+```
+
+**テスト結果:**
+```javascript
+// Q1: 新しいセッション
+await tool.execute({ prompt: "私の名前はケンです" });
+// → "I will remember that your name is Ken."
+
+// Q2: セッションを再開
+await tool.execute({ sessionId: "latest", prompt: "私の名前は？" });
+// → "Your name is Ken."  ✓ 記憶されている！
+
+// ジョジョ質問テスト
+await tool.execute({ prompt: "ジョジョの何部が好き？" });
+// → "第7部「スティール・ボール・ラン」です。"
+
+await tool.execute({ sessionId: "latest", prompt: "その部で一番好きなスタンドは？" });
+// → "「タスク」です。"  ✓ 第7部を覚えている！
+```
+
+#### 4. OpenCode 互換性の問題と対応
+- OpenCode は起動に時間がかかり、タイムアウトが発生
+- `--format json` と有効なモデル指定が必要
+- JSON レスポンスをパースしてテキストを抽出する機能を実装
+
+**実装:**
+```typescript
+// JSON パース機能
+private parseJsonOutput(rawOutput: string): string {
+  const lines = rawOutput.split("\n");
+  const textParts: string[] = [];
+  for (const line of lines) {
+    try {
+      const event = JSON.parse(line);
+      if (event.type === "text" && event.part?.text) {
+        textParts.push(event.part.text);
+      }
+    } catch { continue; }
+  }
+  return textParts.length > 0 ? textParts.join("\n") : rawOutput;
+}
+```
+
+**対応策:**
+- OpenCode をデフォルトで無効化 (`enabled: false`)
+- `ai-tools.json` に設定例を追加:
+  ```json
+  {
+    "command": "opencode",
+    "enabled": false,  // デフォルト無効
+    "defaultArgs": {
+      "format": "json",
+      "model": "google/gemini-2.5-flash"
+    }
+  }
+  ```
+
+#### 5. テストコード
+- `test-all-tools.js` - すべてのツールのロード確認
+- `test-gemini-mcp.js` - MCP ツールメタデータ確認
+- `test-gemini-conversation.js` - Gemini との会話テスト
+- `test-session-mgmt2.js` - セッション管理機能テスト
+- `test-jojo-questions.js` - ジョジョ質問テスト（セッション継続確認）
+
+### 成果
+- **セッション管理**: 呼び元が `sessionId` を管理することで会話の継続が可能に
+- **ツール単位起動**: CLI 引数でツールを指定して起動できる
+- **OpenCode 対応**: JSON パースとデフォルト設定に対応
+- **成功率**: gemini ✓, claude ✓, opencode ⚠️ (デフォルト無効)
+
+### コミット一覧
+- 892fc5e feat: add claude to AI_TOOL_WHITELIST and test MCP integration with gemini
+- 6226490 feat: add session management for AI CLI tools
+
+---
+
+## 2026-01-25 (夕方)
+
+### OpenCode と Claude の統合強化とバグ修正
+
+#### 1. 課題と対応（うまくいかなかった理由）
+
+**課題1: OpenCode/Claude のタイムアウト（ハングアップ）**
+- **理由**: これらのツールはデフォルトで対話モード（Interactive Mode）で起動し、標準入力（stdin）からの入力を待機し続けます。`spawn` したプロセスが入力を待ち続けるため、MCP サーバーが応答せずタイムアウトしていました。
+- **対応**: `src/utils/commandExecutor.ts` を修正し、プロセス起動直後に `child.stdin.end()` を呼び出して入力ストリームを閉じることで、非対話モードとして動作させました。
+
+**課題2: OpenCode の引数エラーとモデル指定**
+- **理由**: `opencode` は `--model` や `--format` を指定しないとエラーになる、または扱いづらい出力を返しますが、これらのオプションがヘルプ出力（`--help`）に含まれていない場合、`GenericCliProvider` が「未知の引数」として除外していました。また、`opencode run` の `run` サブコマンドがフラグの後ろに配置され、正しく認識されていませんでした。
+- **対応**:
+  - `GenericCliProvider` に、`defaultArgs` で指定されたオプションがヘルプに存在しなくても強制的に注入するロジックを追加。
+  - `opencode` の場合、`run` サブコマンドを引数リストの先頭に配置するよう修正。
+
+#### 2. 実装詳細
+
+- **セッション継続**: `sessionId: "latest"` を `opencode` の `--continue` フラグにマッピングする機能を追加。
+- **Claude 対応**: `defaultArgs` に `{ print: true }` を設定し、`--print` フラグとして注入されることを確認。
+
+#### 3. 検証コード
+
+動作確認に使用した `test-opencode-session.js` の概要：
+
+```javascript
+import { ConfigLoader } from "./dist/utils/configLoader.js";
+import { GenericCliProvider } from "./dist/providers/generic-cli.provider.js";
+
+async function testOpencodeSession() {
+  // ConfigLoader から設定をロード
+  const loadResult = ConfigLoader.load();
+  const opencodeConfig = loadResult.config.tools.find(t => t.command === "opencode");
+  
+  // プロバイダー作成（defaultArgs: { format: "json", model: "..." } が注入される）
+  const provider = await GenericCliProvider.create(opencodeConfig);
+
+  // Q1: 通常の質問
+  console.log("--- Q1: ジョジョの何部が好き？ ---");
+  const result1 = await provider.execute({ 
+    prompt: "ジョジョの何部が好き？" 
+  });
+  console.log("Opencode:", result1);
+
+  // Q2: セッション継続 ("latest" -> --continue)
+  console.log("--- Q2: その部で一番好きなスタンドを教えて ---");
+  const result2 = await provider.execute({ 
+    sessionId: "latest",
+    prompt: "その部で一番好きなスタンドを教えて" 
+  });
+  console.log("Opencode:", result2);
+}
+```
+
+#### 4. 成果
+- **OpenCode 修正**: タイムアウトとモデルエラーを解消し、セッション継続が可能に ✅
+  - Q1: "5部が好きです"
+  - Q2: "AIなので..."（コンテキスト維持を確認）
+- **Claude 対応**: `--print` フラグによる非対話モードでの動作を確認 ✅
+- **安定性**: stdin 処理の修正により、CLI ツールのハングアップを防止
+

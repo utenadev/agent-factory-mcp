@@ -128,7 +128,7 @@ export class GenericCliProvider extends BaseCliProvider {
   }
 
   /**
-   * Apply default args to options.
+   * Apply default args to options, injecting missing ones from config.
    */
   private static applyDefaultArgs(
     options: CliToolMetadata["options"],
@@ -136,16 +136,53 @@ export class GenericCliProvider extends BaseCliProvider {
   ): CliToolMetadata["options"] {
     if (!defaultArgs) return options;
 
-    return options.map((opt) =>
+    // Update existing options with default values
+    const updatedOptions = options.map((opt) =>
       defaultArgs[opt.name] !== undefined
         ? { ...opt, defaultValue: defaultArgs[opt.name] }
         : opt
     );
+
+    // Inject missing options from defaultArgs
+    const existingNames = new Set(updatedOptions.map((o) => o.name));
+    for (const [key, value] of Object.entries(defaultArgs)) {
+      if (!existingNames.has(key)) {
+        updatedOptions.push({
+          name: key,
+          flag: key.length === 1 ? `-${key}` : `--${key}`,
+          type: typeof value === "boolean" ? "boolean" : typeof value === "number" ? "number" : "string",
+          description: `Option injected from config (default: ${value})`,
+          defaultValue: value,
+          required: false,
+        });
+      }
+    }
+
+    return updatedOptions;
   }
 
-  /** Get the metadata for this tool. */
+  /**
+   * Get the metadata for this tool.
+   * Adds sessionId option for session management (Gemini/OpenCode-compatible tools).
+   */
   getMetadata(): CliToolMetadata {
-    return this.#metadata;
+    if (!this.#hasSessionManagement()) {
+      return this.#metadata;
+    }
+
+    return {
+      ...this.#metadata,
+      options: [
+        ...this.#metadata.options,
+        {
+          name: "sessionId",
+          flag: "--session-id",
+          type: "string",
+          description: "Session ID to resume. If not provided, starts a new session.",
+          required: false,
+        },
+      ],
+    };
   }
 
   /** Get the original configuration. */
@@ -160,12 +197,152 @@ export class GenericCliProvider extends BaseCliProvider {
 
   /**
    * Execute the CLI command with environment variables from config.
+   * Handles session management for tools that support --resume or --session flag.
    */
   override async execute(
     args: Record<string, any>,
     onProgress?: (output: string) => void
   ): Promise<string> {
     const effectiveArgs = { ...this.#config.defaultArgs, ...args };
-    return super.execute(effectiveArgs, onProgress);
+    const metadata = this.getMetadata();
+    const cmdArgs = this.#buildCommandArgs(metadata, effectiveArgs);
+
+    const rawOutput = await this.executeRaw(metadata.command, cmdArgs, onProgress);
+
+    return effectiveArgs.format === "json"
+      ? this.parseJsonOutput(rawOutput)
+      : rawOutput;
+  }
+
+  /**
+   * Check if this tool supports session management.
+   */
+  #hasSessionManagement(): boolean {
+    return this.#metadata.options.some(opt =>
+      opt.name === "resume" || opt.flag === "--resume" || opt.flag === "-r" ||
+      opt.name === "session" || opt.flag === "--session" || opt.flag === "-s"
+    );
+  }
+
+  /**
+   * Build command arguments from metadata and effective args.
+   * Handles tool-specific subcommands and session management.
+   */
+  #buildCommandArgs(
+    metadata: CliToolMetadata,
+    effectiveArgs: Record<string, any>
+  ): string[] {
+    const cmdArgs: string[] = [];
+    const { sessionId, prompt, ...otherArgs } = effectiveArgs;
+
+    // Add tool-specific subcommand (e.g., opencode needs 'run')
+    if (metadata.command === "opencode") {
+      cmdArgs.push("run");
+    }
+
+    // Add session management flag
+    this.#addSessionFlag(cmdArgs, metadata, sessionId);
+
+    // Add prompt
+    this.#addPrompt(cmdArgs, metadata, prompt);
+
+    // Add other options
+    for (const [key, value] of Object.entries(otherArgs)) {
+      if (value == null) continue;
+
+      const option = metadata.options.find(opt => opt.name === key);
+      if (!option) continue;
+
+      const flag = option.flag || `--${key}`;
+      if (option.type === "boolean") {
+        if (value === true) cmdArgs.push(flag);
+      } else {
+        cmdArgs.push(flag, String(value));
+      }
+    }
+
+    return cmdArgs;
+  }
+
+  /**
+   * Add session management flag to command args.
+   */
+  #addSessionFlag(
+    cmdArgs: string[],
+    metadata: CliToolMetadata,
+    sessionId: string | undefined
+  ): void {
+    if (!sessionId) return;
+
+    // Special case: "latest" maps to --continue for tools that support it
+    if (sessionId === "latest" && this.#hasFlag(metadata, "continue")) {
+      cmdArgs.push("--continue");
+      return;
+    }
+
+    // Use --session flag (opencode)
+    if (this.#hasFlag(metadata, "session")) {
+      cmdArgs.push("--session", sessionId);
+      return;
+    }
+
+    // Use --resume flag (gemini)
+    if (this.#hasFlag(metadata, "resume")) {
+      cmdArgs.push("--resume", sessionId);
+    }
+  }
+
+  /**
+   * Add prompt to command args.
+   * Uses --prompt flag if available, otherwise positional argument.
+   */
+  #addPrompt(
+    cmdArgs: string[],
+    metadata: CliToolMetadata,
+    prompt: string | undefined
+  ): void {
+    if (prompt === undefined) return;
+
+    const hasPromptFlag = this.#hasFlag(metadata, "prompt");
+    const isOpenCode = metadata.command === "opencode";
+
+    if (hasPromptFlag && !isOpenCode) {
+      cmdArgs.push("--prompt", prompt);
+    } else {
+      cmdArgs.push(prompt);
+    }
+  }
+
+  /**
+   * Check if metadata has a specific flag by name or flag property.
+   */
+  #hasFlag(metadata: CliToolMetadata, flagName: string): boolean {
+    return metadata.options.some(opt =>
+      opt.name === flagName ||
+      opt.flag === `--${flagName}` ||
+      opt.flag === `-${flagName}`
+    );
+  }
+
+  /**
+   * Parse JSON output from tools like opencode.
+   * Extracts text content from JSON events.
+   */
+  private parseJsonOutput(rawOutput: string): string {
+    const lines = rawOutput.split("\n").filter(line => line.trim().length > 0);
+    const textParts: string[] = [];
+
+    for (const line of lines) {
+      try {
+        const event = JSON.parse(line);
+        if (event.type === "text" && event.part?.text) {
+          textParts.push(event.part.text);
+        }
+      } catch {
+        // Skip non-JSON lines
+      }
+    }
+
+    return textParts.length > 0 ? textParts.join("\n") : rawOutput;
   }
 }

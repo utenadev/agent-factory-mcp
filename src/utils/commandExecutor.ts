@@ -14,6 +14,7 @@ export async function executeCommand(
     Logger.debug(`Executing command: ${command} ${args.join(" ")}`);
 
     const child = spawn(command, args, { stdio: ["pipe", "pipe", "pipe"] });
+    child.stdin.end();
     let output = "";
     let errorOutput = "";
 

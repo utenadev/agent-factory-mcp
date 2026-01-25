@@ -1,0 +1,21 @@
+{
+  "version": "1.0",
+  "tools": [
+    {
+      "command": "opencode",
+      "alias": "ask-opencode",
+      "description": "\u001b[38;5;244m \u001b[0m ▄ \u001b[38;5;244m█▀▀█ █▀▀█ █▀▀█ █▀▀▄ \u001b[0m█▀▀▀ █▀▀█ █▀▀█ █▀▀█ \u001b[38;5;244m█░░█ █░░█ █▀▀▀ █░░█ \u001b[0m█░░░ █░░█ █░░█ █▀▀▀ \u001b[38;5;244m▀▀▀▀ █▀▀▀ ▀▀▀▀ ▀ ▀ \u001b[0m▀▀▀▀ ▀▀▀▀ ▀▀▀▀ ▀▀▀▀",
+      "providerType": "cli-auto",
+      "enabled": true,
+      "version": "1.1.35"
+    },
+    {
+      "command": "gemini",
+      "alias": "ask-gemini",
+      "description": "Gemini CLI - Launch an interactive CLI, use -p/--prompt for non-interactive mode",
+      "providerType": "cli-auto",
+      "enabled": true,
+      "version": "0.25.2"
+    }
+  ]
+}
