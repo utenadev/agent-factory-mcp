@@ -95,12 +95,27 @@ export async function checkToolCompatibility(
   }
 }
 
+import { CacheManager } from "./cacheManager.js";
+
+// ... existing imports ...
+
 /**
  * Discovers compatible CLI tools based on the whitelist.
  * Efficiently checks for the existence of known tools instead of scanning the entire PATH.
+ * Uses caching to improve performance on subsequent runs.
+ * 
+ * @param forceRefresh If true, ignores cache and forces a fresh scan.
  * @returns List of compatible CliToolMetadata.
  */
-export async function discoverCompatibleTools(): Promise<CliToolMetadata[]> {
+export async function discoverCompatibleTools(forceRefresh = false): Promise<CliToolMetadata[]> {
+  // 1. Try to load from cache
+  if (!forceRefresh) {
+    const cachedTools = CacheManager.load();
+    if (cachedTools) {
+      return cachedTools;
+    }
+  }
+
   const compatibleTools: CliToolMetadata[] = [];
 
   Logger.debug(`Starting discovery for tools: ${Array.from(AI_TOOL_WHITELIST).join(", ")}`);
@@ -117,6 +132,11 @@ export async function discoverCompatibleTools(): Promise<CliToolMetadata[]> {
     } else {
         Logger.debug(`Executable not found for: ${toolName}`);
     }
+  }
+
+  // 2. Save results to cache
+  if (compatibleTools.length > 0) {
+    CacheManager.save(compatibleTools);
   }
 
   return compatibleTools;
