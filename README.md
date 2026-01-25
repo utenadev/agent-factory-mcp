@@ -12,10 +12,12 @@
 ## Features
 
 - **Auto-Discovery**: Automatically detect compatible AI CLI tools (from a safety whitelist) in `PATH` and register them as MCP tools
+- **Session Management**: Continue conversations across multiple calls using `sessionId` parameter
 - **Help Output Parsing**: Parse CLI `--help` output to generate tool metadata
 - **Zero-Code Registration**: Register tools via config file or command-line arguments
 - **Persona Support**: Configure system prompts to create specialized AI agents
-- **Multi-Provider**: Use multiple AI tools simultaneously (Qwen, Gemini, Aider, etc.)
+- **Per-Tool Server**: Run each AI tool as a separate MCP server for better resource management
+- **Multi-Provider**: Use multiple AI tools simultaneously (Claude, Gemini, Qwen, etc.)
 - **Runtime Registration**: Add new tools dynamically via MCP protocol
 
 ## Architecture
@@ -43,11 +45,13 @@ graph TB
     end
 
     subgraph "CLI Tools"
-        I[qwen]
+        I[claude]
         J[gemini]
-        K[aider]
-        L[ollama]
-        M[...any CLI tool]
+        K[opencode]
+        L[qwen]
+        M[aider]
+        N[ollama]
+        O[...any CLI tool]
     end
 
     A -->|stdio| B
@@ -117,12 +121,38 @@ bunx agent-factory-mcp
 
 ## Configuration
 
-### Method 1: Command-Line Arguments
+### Method 1: Command-Line Arguments (Per-Tool Server)
 
-Register tools directly via CLI arguments:
+Run each AI tool as a separate MCP server:
 
 ```bash
+# Run with specific tool only
+agent-factory-mcp claude     # Claude Code only
+agent-factory-mcp gemini     # Gemini CLI only
+agent-factory-mcp opencode   # OpenCode only
+
+# Or register multiple tools in one server
 npx agent-factory-mcp qwen gemini aider
+```
+
+**Claude Desktop config (per-tool setup):**
+```json
+{
+  "mcpServers": {
+    "claude": {
+      "command": "agent-factory-mcp",
+      "args": ["claude"]
+    },
+    "gemini": {
+      "command": "agent-factory-mcp",
+      "args": ["gemini"]
+    },
+    "opencode": {
+      "command": "agent-factory-mcp",
+      "args": ["opencode"]
+    }
+  }
+}
 ```
 
 ### Method 2: Configuration File
@@ -176,12 +206,33 @@ Add to your Claude Desktop config:
 **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
 **Linux**: `~/.config/claude/claude_desktop_config.json`
 
+**Option 1: Per-tool servers (recommended for better resource management)**
+```json
+{
+  "mcpServers": {
+    "claude": {
+      "command": "agent-factory-mcp",
+      "args": ["claude"]
+    },
+    "gemini": {
+      "command": "agent-factory-mcp",
+      "args": ["gemini"]
+    },
+    "qwen": {
+      "command": "agent-factory-mcp",
+      "args": ["qwen"]
+    }
+  }
+}
+```
+
+**Option 2: All tools in one server**
 ```json
 {
   "mcpServers": {
     "agent-factory": {
-      "command": "npx",
-      "args": ["agent-factory-mcp", "qwen", "gemini", "aider"]
+      "command": "agent-factory-mcp",
+      "args": ["claude", "gemini", "qwen"]
     }
   }
 }
@@ -194,6 +245,24 @@ claude mcp add agent-factory -- npx agent-factory-mcp qwen gemini aider
 ```
 
 ## Usage Examples
+
+### Session Management
+
+Continue conversations across multiple calls:
+
+```javascript
+// First call - new session
+await tool.execute({
+  prompt: "My name is Ken. Remember that."
+});
+
+// Second call - resume session
+await tool.execute({
+  sessionId: "latest",  // or specific session ID
+  prompt: "What is my name?"
+});
+// Response: "Your name is Ken." ✓ Context maintained
+```
 
 ### Using Specialized Agents
 
@@ -212,9 +281,9 @@ claude mcp add agent-factory -- npx agent-factory-mcp qwen gemini aider
 
 ```bash
 # Use different AIs for different tasks
-"Use gemini-vision to analyze this screenshot"
+"Use gemini to analyze this screenshot"
 "Use aider to refactor this function"
-"Use qwen to review the changes"
+"Use claude to review the changes"
 ```
 
 ## Configuration Schema
@@ -223,13 +292,14 @@ See `schema.json` for the full configuration schema:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `command` | string | ✅ | CLI command to register (e.g., "qwen", "ollama") |
+| `command` | string | ✅ | CLI command to register (e.g., "claude", "gemini", "opencode") |
 | `enabled` | boolean | ❌ | Whether the tool is enabled (default: true) |
 | `alias` | string | ❌ | Custom tool name (default: "ask-{command}") |
 | `description` | string | ❌ | Custom tool description |
 | `systemPrompt` | string | ❌ | System prompt for AI persona |
 | `providerType` | string | ❌ | Provider type: "cli-auto" or "custom" |
 | `defaultArgs` | object | ❌ | Default argument values |
+| `version` | string | ❌ | Auto-detected tool version |
 
 ## Development
 
