@@ -104,9 +104,14 @@ After completing the core roadmap, the following features were added:
 
 ## Future Enhancements (Ideas)
 
-Potential areas for future development:
+### Testing & Quality Improvement (High Priority)
+Following the MistralVibe test report analysis, the following areas need attention:
+- [ ] **Implement Unit Tests for `BaseCliProvider`**: Improve coverage for the core base class (currently 0%).
+- [ ] **Enhance `ConfigLoader` Error Handling Tests**: Add tests for invalid JSON, missing schemas, and permission issues.
+- [ ] **Improve `Logger` Coverage**: Verify log level filtering and output formatting.
+- [ ] **Automated Coverage Reporting**: Integrate coverage reporting into the CI pipeline.
 
-- **Auto-Discovery**: Scan PATH for compatible CLI tools automatically
+### Other Ideas
 - **Tool Marketplace**: Share and discover tool configurations
 - **Web UI**: Browser-based configuration and testing interface
 - **Custom Parser Strategies**: Pluggable parsers for non-standard help formats
