@@ -263,3 +263,43 @@ runDiscovery().catch(err => {
   console.error("Discovery failed:", err);
 });
 ```
+
+---
+
+## 2026-01-25 (早朝)
+
+### Auto-Discovery機能の最適化と完成
+
+#### 1. ホワイトリスト方式への変更
+- パフォーマンスと安全性を考慮し、Auto-Discoveryのロジックを全ファイルスキャンからホワイトリストベース（`AI_TOOL_WHITELIST`）の検索に変更
+- `src/utils/autoDiscovery.ts` を大幅にリファクタリング
+- `findExecutable` 関数を実装し、`which` / `where` コマンドで効率的にツールを探索
+- ホワイトリストを `opencode`, `gemini` に設定（実環境での動作確認済み）
+
+#### 2. バージョン追跡機能の実装
+- CLI ツールのバージョン番号を自動検出し、設定ファイルに保存する機能を追加
+- `CliToolMetadata` と `ToolConfig` に `version` フィールドを追加
+- `getToolVersion` 関数を実装し、`--version` や `-v` フラグからバージョン番号を抽出
+- 数字のみのバージョン番号（例：Gemini CLI の `0.25.2`）にも対応する強力な正規表現を実装
+- 重いCLIツール（Gemini等）のためにタイムアウトを延長
+
+#### 3. バグ修正と環境整備
+- 初期化時に Auto-Discovery が成功しても設定がリロードされないバグを修正（`src/index.ts`）
+- `tsconfig.json` のモジュール設定を `NodeNext` に戻し、Bun/ESM 環境でのビルドを正常化
+- `ai-tools.json` を `.gitignore` に追加
+
+#### 4. ドキュメントの整備
+- `README.md` と `README.ja.md` に Auto-Discovery の実行条件（設定ファイルがない場合のみ）と再実行方法を明記
+- 日本語ドキュメント (`README.ja.md`) を最新の英語ドキュメントと同期
+
+### 成果
+- **安全性向上**: 未知の実行ファイルへのアクセスを排除
+- **パフォーマンス向上**: 全スキャン方式（数分）からホワイトリスト検索（数秒）へ劇的に改善
+- **UX向上**: バージョン情報の自動記録により、環境の再現性が向上
+
+### コミット一覧
+- c69705a refactor: optimize auto-discovery logic to use whitelist-first lookup
+- adebcf8 fix: ensure config is reloaded after auto-discovery in initialization
+- 6c81bf1 feat: enhance auto-discovery with whitelist support and documentation
+- c45afb3 feat: add tool version tracking to auto-discovery and configuration
+- b66865c docs: update README.md and sync README.ja.md
