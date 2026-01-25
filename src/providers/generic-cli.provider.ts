@@ -136,11 +136,28 @@ export class GenericCliProvider extends BaseCliProvider {
   ): CliToolMetadata["options"] {
     if (!defaultArgs) return options;
 
-    return options.map((opt) =>
+    const updatedOptions = options.map((opt) =>
       defaultArgs[opt.name] !== undefined
         ? { ...opt, defaultValue: defaultArgs[opt.name] }
         : opt
     );
+
+    // Inject missing options from defaultArgs
+    const existingNames = new Set(updatedOptions.map((o) => o.name));
+    for (const [key, value] of Object.entries(defaultArgs)) {
+      if (!existingNames.has(key)) {
+        updatedOptions.push({
+          name: key,
+          flag: key.length === 1 ? `-${key}` : `--${key}`,
+          type: typeof value === "boolean" ? "boolean" : typeof value === "number" ? "number" : "string",
+          description: `Option injected from config (default: ${value})`,
+          defaultValue: value,
+          required: false,
+        });
+      }
+    }
+
+    return updatedOptions;
   }
 
   /**
@@ -213,20 +230,28 @@ export class GenericCliProvider extends BaseCliProvider {
     const cmdArgs: string[] = [];
     const prompt = effectiveArgs.prompt;
 
+    // Special handling for opencode: needs 'run' subcommand
+    // Must be added before flags
+    const isOpenCode = metadata.command === "opencode";
+    if (isOpenCode) {
+      cmdArgs.push("run");
+    }
+
     // Add session flag if sessionId is provided and tool supports it
     // Gemini uses --resume, OpenCode uses --session
     if (sessionId) {
-      if (hasSessionFlag) {
+      const isLatest = sessionId === "latest";
+      const hasContinueFlag = metadata.options.some(
+        opt => opt.name === "continue" || opt.flag === "--continue" || opt.flag === "-c"
+      );
+
+      if (isLatest && hasContinueFlag) {
+        cmdArgs.push("--continue");
+      } else if (hasSessionFlag) {
         cmdArgs.push("--session", String(sessionId));
       } else if (hasResumeFlag) {
         cmdArgs.push("--resume", String(sessionId));
       }
-    }
-
-    // Special handling for opencode: needs 'run' subcommand
-    const isOpenCode = metadata.command === "opencode";
-    if (isOpenCode) {
-      cmdArgs.push("run");
     }
 
     // Add prompt (as positional argument or via --prompt flag)

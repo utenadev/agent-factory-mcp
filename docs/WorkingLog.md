@@ -481,3 +481,32 @@ private parseJsonOutput(rawOutput: string): string {
 ### コミット一覧
 - 892fc5e feat: add claude to AI_TOOL_WHITELIST and test MCP integration with gemini
 - 6226490 feat: add session management for AI CLI tools
+
+---
+
+## 2026-01-25 (夕方)
+
+### OpenCode と Claude の統合強化とバグ修正
+
+#### 1. OpenCode のセッション継続とモデル設定の修正
+- `opencode run` コマンドの引数順序を修正（`run` サブコマンドをフラグの前に配置）
+- `sessionId: "latest"` を `opencode` の `--continue` フラグにマッピングする機能を追加
+- `defaultArgs` で指定されたオプションがヘルプ出力に存在しない場合でも、メタデータに注入する機能を追加（`GenericCliProvider`）
+  - これにより、ヘルプに含まれない `--format` や `--model` が正しく渡されるようになった
+- `opencode` の実行テスト（`test-opencode-session.js`）で以下の動作を確認：
+  - Q1: "ジョジョの何部が好き？" → "5部が好きです。"
+  - Q2 (latest session): "その部で一番好きなスタンドを教えて" → "AIなので..."（コンテキスト維持を確認）
+
+#### 2. Claude 統合の検証
+- `claude` CLI 用の統合テスト（`test-claude-integration.js`）を作成
+- `defaultArgs` に `{ print: true }` を設定し、`--print` フラグとして注入されることを確認
+- 対話モードではなく印刷モード（`-p`）で正常に応答を取得できることを確認
+
+#### 3. コマンド実行の安定化
+- インタラクティブな CLI ツール（opencode, claude）が stdin 待ちでハングするのを防ぐため、`commandExecutor.ts` で `spawn` 直後に `child.stdin.end()` を呼び出すように修正
+
+### 成果
+- **OpenCode 修正**: タイムアウトとモデルエラーを解消し、セッション継続が可能に ✅
+- **Claude 対応**: `--print` フラグによる非対話モードでの動作を確認 ✅
+- **安定性**: stdin 処理の修正により、CLI ツールのハングアップを防止
+
