@@ -488,25 +488,60 @@ private parseJsonOutput(rawOutput: string): string {
 
 ### OpenCode と Claude の統合強化とバグ修正
 
-#### 1. OpenCode のセッション継続とモデル設定の修正
-- `opencode run` コマンドの引数順序を修正（`run` サブコマンドをフラグの前に配置）
-- `sessionId: "latest"` を `opencode` の `--continue` フラグにマッピングする機能を追加
-- `defaultArgs` で指定されたオプションがヘルプ出力に存在しない場合でも、メタデータに注入する機能を追加（`GenericCliProvider`）
-  - これにより、ヘルプに含まれない `--format` や `--model` が正しく渡されるようになった
-- `opencode` の実行テスト（`test-opencode-session.js`）で以下の動作を確認：
-  - Q1: "ジョジョの何部が好き？" → "5部が好きです。"
-  - Q2 (latest session): "その部で一番好きなスタンドを教えて" → "AIなので..."（コンテキスト維持を確認）
+#### 1. 課題と対応（うまくいかなかった理由）
 
-#### 2. Claude 統合の検証
-- `claude` CLI 用の統合テスト（`test-claude-integration.js`）を作成
-- `defaultArgs` に `{ print: true }` を設定し、`--print` フラグとして注入されることを確認
-- 対話モードではなく印刷モード（`-p`）で正常に応答を取得できることを確認
+**課題1: OpenCode/Claude のタイムアウト（ハングアップ）**
+- **理由**: これらのツールはデフォルトで対話モード（Interactive Mode）で起動し、標準入力（stdin）からの入力を待機し続けます。`spawn` したプロセスが入力を待ち続けるため、MCP サーバーが応答せずタイムアウトしていました。
+- **対応**: `src/utils/commandExecutor.ts` を修正し、プロセス起動直後に `child.stdin.end()` を呼び出して入力ストリームを閉じることで、非対話モードとして動作させました。
 
-#### 3. コマンド実行の安定化
-- インタラクティブな CLI ツール（opencode, claude）が stdin 待ちでハングするのを防ぐため、`commandExecutor.ts` で `spawn` 直後に `child.stdin.end()` を呼び出すように修正
+**課題2: OpenCode の引数エラーとモデル指定**
+- **理由**: `opencode` は `--model` や `--format` を指定しないとエラーになる、または扱いづらい出力を返しますが、これらのオプションがヘルプ出力（`--help`）に含まれていない場合、`GenericCliProvider` が「未知の引数」として除外していました。また、`opencode run` の `run` サブコマンドがフラグの後ろに配置され、正しく認識されていませんでした。
+- **対応**:
+  - `GenericCliProvider` に、`defaultArgs` で指定されたオプションがヘルプに存在しなくても強制的に注入するロジックを追加。
+  - `opencode` の場合、`run` サブコマンドを引数リストの先頭に配置するよう修正。
 
-### 成果
+#### 2. 実装詳細
+
+- **セッション継続**: `sessionId: "latest"` を `opencode` の `--continue` フラグにマッピングする機能を追加。
+- **Claude 対応**: `defaultArgs` に `{ print: true }` を設定し、`--print` フラグとして注入されることを確認。
+
+#### 3. 検証コード
+
+動作確認に使用した `test-opencode-session.js` の概要：
+
+```javascript
+import { ConfigLoader } from "./dist/utils/configLoader.js";
+import { GenericCliProvider } from "./dist/providers/generic-cli.provider.js";
+
+async function testOpencodeSession() {
+  // ConfigLoader から設定をロード
+  const loadResult = ConfigLoader.load();
+  const opencodeConfig = loadResult.config.tools.find(t => t.command === "opencode");
+  
+  // プロバイダー作成（defaultArgs: { format: "json", model: "..." } が注入される）
+  const provider = await GenericCliProvider.create(opencodeConfig);
+
+  // Q1: 通常の質問
+  console.log("--- Q1: ジョジョの何部が好き？ ---");
+  const result1 = await provider.execute({ 
+    prompt: "ジョジョの何部が好き？" 
+  });
+  console.log("Opencode:", result1);
+
+  // Q2: セッション継続 ("latest" -> --continue)
+  console.log("--- Q2: その部で一番好きなスタンドを教えて ---");
+  const result2 = await provider.execute({ 
+    sessionId: "latest",
+    prompt: "その部で一番好きなスタンドを教えて" 
+  });
+  console.log("Opencode:", result2);
+}
+```
+
+#### 4. 成果
 - **OpenCode 修正**: タイムアウトとモデルエラーを解消し、セッション継続が可能に ✅
+  - Q1: "5部が好きです"
+  - Q2: "AIなので..."（コンテキスト維持を確認）
 - **Claude 対応**: `--print` フラグによる非対話モードでの動作を確認 ✅
 - **安定性**: stdin 処理の修正により、CLI ツールのハングアップを防止
 
