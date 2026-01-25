@@ -1,58 +1,55 @@
-# Testing Strategy
+# テスト戦略
 
-This document outlines the testing strategy for `agent-factory-mcp`, including the types of tests, how to run them, and the rationale behind specific testing decisions (like AutoDiscovery).
+このドキュメントでは、`agent-factory-mcp` におけるテスト戦略、テストの種類、実行方法、および特定の設計判断（AutoDiscovery など）の背後にある根拠について説明します。
 
-## Overview
+## 概要
 
-We employ a **Hybrid Testing Strategy** that balances speed/reliability (Unit Tests) with real-world verification (E2E Tests).
+本プロジェクトでは、速度と信頼性（ユニットテスト）と、実環境での動作保証（E2Eテスト）のバランスを取るために、**ハイブリッドテスト戦略**を採用しています。
 
-| Test Type | Scope | Dependencies | Speed | Purpose |
+| テスト種別 | スコープ | 依存関係 | 速度 | 目的 |
 | :--- | :--- | :--- | :--- | :--- |
-| **Unit Tests** | Logic correctness (Parsers, Config, Registry) | None (Mocked fixtures) | Fast (Seconds) | Verify code logic, regressions, and edge cases. |
-| **E2E Tests** | Full system integration (AutoDiscovery -> Execution) | Actual AI CLI Tools | Slow (10s+) | Verify that the system actually works with real external binaries. |
+| **ユニットテスト** | ロジックの正当性 (Parser, Config, Registry) | なし (Fixturesを使用) | 高速 (数秒) | コードロジックの検証、デグレード防止。 |
+| **E2Eテスト** | システム全体の統合 (Discovery -> 実行) | 実際の AI CLI ツール | 低速 (10秒〜) | 実際のバイナリと連携して動作することの保証。 |
 
-## Test Commands (via Task)
+## テストコマンド (Task)
 
-We use [Task](https://taskfile.dev/) to manage test execution.
+タスクランナー [Task](https://taskfile.dev/) を使用してテストを実行します。
 
-| Command | Description | Recommended Usage |
+| コマンド | 説明 | 推奨される用途 |
 | :--- | :--- | :--- |
-| `task test-unit` | Runs all tests **except** E2E. Uses static fixtures. | **Primary**. Run frequently during development. |
-| `task test-e2e` | Runs **only** E2E tests. Calls real CLI binaries. | Run before release or when debugging integration issues. |
-| `task check` | Runs Type Check -> Lint -> Unit Tests. | **CI/Pre-commit**. Ensures code quality without external dependencies. |
-| `task test` | Runs ALL tests (Unit + E2E). | Run for full verification (requires AI tools). |
+| `task test-unit` | E2E以外のすべてのテストを実行。 | **開発時のメイン。** ロジック修正時に頻繁に実行。 |
+| `task test-e2e` | E2Eテストのみを実行。実バイナリを叩く。 | リリース前や、環境構築後の疎通確認。 |
+| `task check` | 型チェック -> Lint -> ユニットテストを実行。 | **CI/コミット前。** 外部依存なしで品質を担保。 |
+| `task test` | 全テスト (Unit + E2E) を実行。 | すべての環境が整っている状態での最終確認。 |
 
-## Strategic Decisions
+## 戦略的判断
 
-### AutoDiscovery & The "Hybrid" Approach
+### AutoDiscovery とハイブリッドアプローチ
 
-The **AutoDiscovery** feature presents a unique challenge: it relies heavily on the user's local environment (which tools are installed in `PATH` and what versions they are).
+**AutoDiscovery（自動検出）** 機能は、ユーザーのローカル環境（`PATH` に何がインストールされているか、どのバージョンか）に強く依存するため、テストが難しいという課題があります。
 
-1.  **Why not mock everything?**
-    *   Mocking the file system and `exec` calls for AutoDiscovery resulted in fragile tests that passed even when the real integration was broken.
-    *   It failed to catch issues like "the tool's output format changed in a new version" or "permission issues."
+1.  **すべてをモック化しない理由**
+    *   ファイルシステムや `exec` 呼び出しをすべてモック化すると、テストは通るのに「実環境では動かない（ツールの出力形式が変わった、権限がない等）」という事態を防げないためです。
+2.  **すべてを E2E にしない理由**
+    *   外部バイナリの呼び出しは遅く、また特定のツール（`claude`, `gemini`等）がインストールされていない環境（CIなど）でテストが失敗してしまうためです。
 
-2.  **Why not test everything E2E?**
-    *   Calling external binaries is slow and non-deterministic.
-    *   It requires specific tools (`claude`, `gemini`) to be installed, making it unsuitable for standard CI environments.
+**解決策：**
+以下の2層構造でテストを構成しています。
 
-**Solution:**
-We split the concern into two layers:
+*   **レイヤー 1: 決定論的なパース検証 (ユニットテスト)**
+    *   対象: `src/parsers/help-parser.ts`
+    *   方法: 実際のツールのヘルプ出力 (`--help`) をテキストファイル (`test/fixtures/*.txt`) として保存。
+    *   テスト: 保存されたテキストを正しくパースしてメタデータを生成できるかを検証。これはどこでも高速に実行可能です。
 
-*   **Layer 1: Deterministic Parsing (Unit Tests)**
-    *   Target: `src/parsers/help-parser.ts`
-    *   Method: We capture the output of real tools (`--help`) into static files (`test/fixtures/*.txt`).
-    *   Test: We verify that our parser correctly extracts metadata from these text files. This is fast and runs everywhere.
+*   **レイヤー 2: 実環境での疎通確認 (E2Eテスト)**
+    *   対象: `src/utils/autoDiscovery.ts`, `src/providers/*`
+    *   方法: 実際に `discoverCompatibleTools()` を呼び出し、見つかったツールに対して `--version` などの無害なフラグを実行。
+    *   テスト: パイプライン全体が現在の環境で機能することを証明します。
 
-*   **Layer 2: Real-World connectivity (E2E Tests)**
-    *   Target: `src/utils/autoDiscovery.ts`, `src/providers/*`
-    *   Method: We actually call `discoverCompatibleTools()` and try to execute the found tools (using harmless flags like `--version`).
-    *   Test: This proves that the entire pipeline works in the current environment.
+## CI/CD ワークフロー
 
-## CI/CD Workflow
-
-Our GitHub Actions workflow uses `task check` (which runs `test:unit`).
-This ensures that:
-1.  **CI never fails** just because an AI tool isn't installed in the runner.
-2.  **Code logic is always verified** before merge.
-3.  **E2E tests are reserved** for local verification or specialized runners with pre-installed tools.
+GitHub Actions では `task check`（内部で `test:unit` を実行）を使用しています。
+これにより：
+1.  **CIが環境に左右されない**: 実行環境に AI ツールがなくてもテストが失敗しません。
+2.  **ロジックの検証を徹底**: マージ前にコードの論理的な正しさを常に保証します。
+3.  **E2Eはローカルで**: 実際のツールが必要な検証は、開発者の手元や専用の環境で行う運用としています。
