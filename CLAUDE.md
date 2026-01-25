@@ -10,25 +10,30 @@ QwenCode MCP Server は、Model Context Protocol (MCP) を使用して AI アシ
 
 ## 開発コマンド
 
+このプロジェクトは **Bun ランタイム**を使用します。タスクランナーとして **go-task** も利用可能です。
+
 ```bash
-# ビルド
-npm run build
+# go-task を使用（推奨）
+task build       # ビルド
+task dev         # 開発（ビルドして実行）
+task start       # 実行（ビルド済み）
+task test        # テスト実行
+task lint        # リント
+task format      # フォーマット
+task check       # すべての品質チェック
+task --list      # 利用可能なタスクを表示
 
-# 開発（ビルドして実行）
-npm run dev
-
-# 実行（ビルド済み）
-npm start
-
-# テスト実行
-npm test
-
-# リント（TypeScript 型チェックのみ）
-npm run lint
+# または bun コマンドを直接使用
+bun run build    # ビルド
+bun run dev      # 開発（ビルドして実行）
+bun run start    # 実行（ビルド済み）
+bun test         # テスト実行
+bun run lint     # リント（Biome）
+bun run format   # フォーマット（Biome）
 
 # 単一のテストファイルを実行
-node --test test/tools.test.js
-node --test test/registry.test.js
+bun test test/tools.test.js
+bun test test/registry.test.js
 ```
 
 ## アーキテクチャ
@@ -147,10 +152,11 @@ export class OpenAIProvider extends BaseCliProvider {
 
 ## テスト
 
-テストは Node.js の組み込みテストランナーを使用しています:
+テストは **Bun テストランナー**を使用しています:
 
 - `test/tools.test.js` - 静的ツール（Ping、Help）のテスト
 - `test/registry.test.js` - レジストリ機能のテスト
+- `test/autoDiscovery.test.js` - Auto-Discovery 機能のテスト
 
 テストは `dist/` ディレクトリ内のコンパイル済みコードに対して実行されます。
 

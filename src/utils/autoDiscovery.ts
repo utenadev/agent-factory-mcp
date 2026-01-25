@@ -4,59 +4,28 @@ import type { CliToolMetadata } from "../types/cli-metadata.js";
 import { Logger } from "./logger.js";
 
 // AI Agentツールのホワイトリスト
+// 今回のテスト用に opencode のみに限定
 const AI_TOOL_WHITELIST = new Set([
-  "qwen",
-  "aider",
-  "gemini",
   "opencode",
-  "crush",
-  "vibe",
 ]);
 
 /**
- * Scans the user's PATH for executable CLI tools.
- * @returns List of executable file paths.
+ * Checks if a specific command exists in the PATH.
+ * @param command The command name to look for.
+ * @returns The full path to the executable if found, null otherwise.
  */
-export async function scanPathForExecutables(): Promise<string[]> {
+export function findExecutable(command: string): string | null {
   try {
-    const pathEnv = process.env.PATH || "";
-    const pathDirs = pathEnv.split(process.platform === "win32" ? ";" : ":");
+    const checkCommand = process.platform === "win32" ? "where" : "which";
+    const result = execSync(`${checkCommand} "${command}" 2> /dev/null || echo ""`).toString().trim();
+    
+    if (!result) return null;
 
-    const executables: string[] = [];
-
-    for (const dir of pathDirs) {
-      try {
-        const filesInDir =
-          process.platform === "win32"
-            ? execSync(`dir "${dir}" /b /a-d 2> nul || echo ""`)
-                .toString()
-                .split("\n")
-                .map(file => file.trim())
-            : execSync(`ls "${dir}" 2> /dev/null || echo ""`)
-                .toString()
-                .split("\n")
-                .map(file => file.trim());
-
-        for (const file of filesInDir) {
-          if (!file) continue;
-
-          const filePath = `${dir}/${file}`;
-          if (process.platform !== "win32") {
-            try {
-              execSync(`test -x "${filePath}" && echo "executable"`);
-              executables.push(filePath);
-            } catch {}
-          } else if (file.match(/\.(exe|cmd|bat)$/i)) {
-            executables.push(filePath);
-          }
-        }
-      } catch {}
-    }
-
-    return [...new Set(executables)];
+    // "where" command on Windows might return multiple paths, take the first one
+    const paths = result.split(/\r?\n/);
+    return paths[0] || null;
   } catch (error) {
-    Logger.error(`Failed to scan PATH: ${error}`);
-    return [];
+    return null;
   }
 }
 
@@ -69,9 +38,14 @@ export async function checkToolCompatibility(
   executablePath: string
 ): Promise<CliToolMetadata | null> {
   try {
-    const commandName = executablePath.split("/").pop() || executablePath;
+    // Extract command name from path (e.g., /usr/bin/opencode -> opencode)
+    const commandName = process.platform === "win32" 
+      ? executablePath.split("\\").pop()?.split(".")[0] || executablePath
+      : executablePath.split("/").pop() || executablePath;
+
     if (!AI_TOOL_WHITELIST.has(commandName)) {
-      return null;
+        // Double check against whitelist just in case
+        return null;
     }
 
     const helpOutput = execSync(`"${executablePath}" --help 2> /dev/null || echo ""`, {
@@ -91,17 +65,26 @@ export async function checkToolCompatibility(
 }
 
 /**
- * Discovers compatible CLI tools from PATH and returns their metadata.
+ * Discovers compatible CLI tools based on the whitelist.
+ * Efficiently checks for the existence of known tools instead of scanning the entire PATH.
  * @returns List of compatible CliToolMetadata.
  */
 export async function discoverCompatibleTools(): Promise<CliToolMetadata[]> {
-  const executables = await scanPathForExecutables();
   const compatibleTools: CliToolMetadata[] = [];
 
-  for (const executable of executables) {
-    const metadata = await checkToolCompatibility(executable);
-    if (metadata) {
-      compatibleTools.push(metadata);
+  Logger.debug(`Starting discovery for tools: ${Array.from(AI_TOOL_WHITELIST).join(", ")}`);
+
+  for (const toolName of AI_TOOL_WHITELIST) {
+    const executablePath = findExecutable(toolName);
+    
+    if (executablePath) {
+      Logger.debug(`Found executable for ${toolName}: ${executablePath}`);
+      const metadata = await checkToolCompatibility(executablePath);
+      if (metadata) {
+        compatibleTools.push(metadata);
+      }
+    } else {
+        Logger.debug(`Executable not found for: ${toolName}`);
     }
   }
 
