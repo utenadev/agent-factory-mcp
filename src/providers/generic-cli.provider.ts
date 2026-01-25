@@ -143,9 +143,34 @@ export class GenericCliProvider extends BaseCliProvider {
     );
   }
 
-  /** Get the metadata for this tool. */
+  /**
+   * Get the metadata for this tool.
+   * Adds sessionId option for session management (Gemini-compatible tools).
+   */
   getMetadata(): CliToolMetadata {
-    return this.#metadata;
+    // Check if this tool supports session management (has --resume flag)
+    const hasResumeFlag = this.#metadata.options.some(
+      opt => opt.name === "resume" || opt.flag === "--resume" || opt.flag === "-r"
+    );
+
+    if (!hasResumeFlag) {
+      return this.#metadata;
+    }
+
+    // Add sessionId option for session management
+    return {
+      ...this.#metadata,
+      options: [
+        ...this.#metadata.options,
+        {
+          name: "sessionId",
+          flag: "--session-id",
+          type: "string",
+          description: "Session ID to resume. If not provided, starts a new session.",
+          required: false,
+        },
+      ],
+    };
   }
 
   /** Get the original configuration. */
@@ -160,12 +185,62 @@ export class GenericCliProvider extends BaseCliProvider {
 
   /**
    * Execute the CLI command with environment variables from config.
+   * Handles session management for tools that support --resume flag.
    */
   override async execute(
     args: Record<string, any>,
     onProgress?: (output: string) => void
   ): Promise<string> {
     const effectiveArgs = { ...this.#config.defaultArgs, ...args };
-    return super.execute(effectiveArgs, onProgress);
+
+    // Extract sessionId from args (don't pass to CLI as-is)
+    const sessionId = effectiveArgs.sessionId;
+    delete effectiveArgs.sessionId;
+
+    // Get metadata to check for resume flag
+    const metadata = this.getMetadata();
+    const hasResumeFlag = metadata.options.some(
+      opt => opt.name === "resume" || opt.flag === "--resume" || opt.flag === "-r"
+    );
+
+    // Build arguments for the command
+    const cmdArgs: string[] = [];
+    const prompt = effectiveArgs.prompt;
+
+    // Add --resume flag if sessionId is provided and tool supports it
+    if (hasResumeFlag && sessionId) {
+      cmdArgs.push("--resume", String(sessionId));
+    }
+
+    // Add prompt (as positional argument or via --prompt flag)
+    if (prompt !== undefined) {
+      // Check if tool uses --prompt flag or positional argument
+      const hasPromptFlag = metadata.options.some(
+        opt => opt.name === "prompt" || opt.flag === "--prompt" || opt.flag === "-p"
+      );
+      if (hasPromptFlag) {
+        cmdArgs.push("--prompt", String(prompt));
+      } else {
+        cmdArgs.push(String(prompt));
+      }
+    }
+
+    // Add other options
+    for (const [key, value] of Object.entries(effectiveArgs)) {
+      if (value === undefined || value === null || key === "prompt") continue;
+
+      const option = metadata.options.find(opt => opt.name === key);
+      if (option) {
+        const flag = option.flag || `--${key}`;
+        if (option.type === "boolean") {
+          if (value === true) cmdArgs.push(flag);
+        } else {
+          cmdArgs.push(flag, String(value));
+        }
+      }
+    }
+
+    // Execute the command
+    return this.executeRaw(metadata.command, cmdArgs, onProgress);
   }
 }
