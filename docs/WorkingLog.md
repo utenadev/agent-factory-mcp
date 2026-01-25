@@ -545,3 +545,64 @@ async function testOpencodeSession() {
 - **Claude 対応**: `--print` フラグによる非対話モードでの動作を確認 ✅
 - **安定性**: stdin 処理の修正により、CLI ツールのハングアップを防止
 
+#### 6. コード簡素化とドキュメント更新
+
+**コードリファクタリング:**
+- `generic-cli.provider.ts` を簡素化
+- プライベートメソッド化: `#buildCommandArgs`, `#addSessionFlag`, `#addPrompt`, `#hasFlag`, `#hasSessionManagement`
+- execute() メソッド: 85行 → 13行 に短縮
+
+**ドキュメント更新:**
+- README.md, README.ja.md に AI Agent 対応、セッション管理、ツール単位起動を記載
+- Bun ランタイム前提を明記（`npx` → `bunx`）
+- [jamubc/gemini-mcp-tool](https://github.com/jamubc/gemini-mcp-tool) への謝辞を追加
+- GitHub Description を設定
+
+#### 7. テストコード（検証用）
+
+**主要なテストファイル:**
+
+- `test-claude-integration.js` - Claude CLI 統合テスト
+  ```javascript
+  // Claude 設定手動作成して --print フラグで動作確認
+  const claudeConfig = {
+    command: "claude",
+    defaultArgs: { print: true }
+  };
+  const result = await provider.execute({ prompt: "Hello, who are you?" });
+  ```
+
+- `test-opencode-session.js` - OpenCode セッション継続テスト
+  ```javascript
+  // Q1: 通常の質問
+  await provider.execute({ prompt: "ジョジョの何部が好き？" });
+
+  // Q2: セッション継続 (sessionId: "latest" → --continue)
+  await provider.execute({
+    sessionId: "latest",
+    prompt: "その部で一番好きなスタンドは？"
+  });
+  ```
+
+- `test-jojo-questions.js` - Gemini セッション継続テスト（ジョジョ質問）
+  ```javascript
+  // ジョジョ質問テスト - セッション継続確認
+  await tool.execute({ prompt: "ジョジョの何部が好き？" });
+  await tool.execute({ sessionId: "latest", prompt: "その部で一番好きなスタンドは？" });
+  ```
+
+- `test-simplified.js` - コード簡素化後の動作確認
+  ```javascript
+  // 新しいセッション
+  await tool.execute({ prompt: "1+1は？" });
+
+  // セッション再開
+  await tool.execute({ sessionId: "latest", prompt: "同じ問題を英語で答えて" });
+  ```
+
+**テスト実行結果:**
+- Claude: 動作確認 ✅
+- Gemini: セッション継続確認 ✅ ("第7部"を記憶)
+- OpenCode: JSON パースとセッション継続確認 ✅
+- コード簡素化: 全機能維持を確認 ✅
+

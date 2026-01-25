@@ -368,6 +368,10 @@ agent-factory-mcp/
 
 プルリクエストを歓迎します！
 
+## 謝辞
+
+このプロジェクトは [jamubc/gemini-mcp-tool](https://github.com/jamubc/gemini-mcp-tool) にインスピレーションを受けています。
+
 ## ライセンス
 
 MIT License - 詳細は [LICENSE](LICENSE) を参照してください。
