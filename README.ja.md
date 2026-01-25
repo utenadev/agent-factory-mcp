@@ -455,6 +455,7 @@ await tool.execute({
 ## 開発
 
 このプロジェクトではタスク管理に [Task](https://taskfile.dev/) を使用しています。
+テスト戦略の詳細（ユニットテストとE2Eの使い分けや、自動検出機能のテスト方針など）については、[docs/TESTING.md](docs/TESTING.md) を参照してください。
 
 ```bash
 # 依存関係のインストール

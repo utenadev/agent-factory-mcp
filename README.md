@@ -449,6 +449,7 @@ See `schema.json` for the full configuration schema:
 ## Development
 
 This project uses [Task](https://taskfile.dev/) for task management.
+For a detailed explanation of our testing strategy (including Unit vs E2E and AutoDiscovery), please see [docs/TESTING.md](docs/TESTING.md).
 
 ```bash
 # Install dependencies
