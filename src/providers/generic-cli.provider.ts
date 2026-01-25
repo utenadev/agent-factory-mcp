@@ -128,7 +128,7 @@ export class GenericCliProvider extends BaseCliProvider {
   }
 
   /**
-   * Apply default args to options.
+   * Apply default args to options, injecting missing ones from config.
    */
   private static applyDefaultArgs(
     options: CliToolMetadata["options"],
@@ -136,6 +136,7 @@ export class GenericCliProvider extends BaseCliProvider {
   ): CliToolMetadata["options"] {
     if (!defaultArgs) return options;
 
+    // Update existing options with default values
     const updatedOptions = options.map((opt) =>
       defaultArgs[opt.name] !== undefined
         ? { ...opt, defaultValue: defaultArgs[opt.name] }
@@ -165,19 +166,10 @@ export class GenericCliProvider extends BaseCliProvider {
    * Adds sessionId option for session management (Gemini/OpenCode-compatible tools).
    */
   getMetadata(): CliToolMetadata {
-    // Check if this tool supports session management
-    // Gemini uses --resume, OpenCode uses --session
-    const hasSessionFlag = this.#metadata.options.some(
-      opt =>
-        opt.name === "resume" || opt.flag === "--resume" || opt.flag === "-r" ||
-        opt.name === "session" || opt.flag === "--session" || opt.flag === "-s"
-    );
-
-    if (!hasSessionFlag) {
+    if (!this.#hasSessionManagement()) {
       return this.#metadata;
     }
 
-    // Add sessionId option for session management
     return {
       ...this.#metadata,
       options: [
@@ -212,86 +204,124 @@ export class GenericCliProvider extends BaseCliProvider {
     onProgress?: (output: string) => void
   ): Promise<string> {
     const effectiveArgs = { ...this.#config.defaultArgs, ...args };
-
-    // Extract sessionId from args (don't pass to CLI as-is)
-    const sessionId = effectiveArgs.sessionId;
-    delete effectiveArgs.sessionId;
-
-    // Get metadata to check for session flags
     const metadata = this.getMetadata();
-    const hasResumeFlag = metadata.options.some(
-      opt => opt.name === "resume" || opt.flag === "--resume" || opt.flag === "-r"
-    );
-    const hasSessionFlag = metadata.options.some(
-      opt => opt.name === "session" || opt.flag === "--session" || opt.flag === "-s"
-    );
+    const cmdArgs = this.#buildCommandArgs(metadata, effectiveArgs);
 
-    // Build arguments for the command
+    const rawOutput = await this.executeRaw(metadata.command, cmdArgs, onProgress);
+
+    return effectiveArgs.format === "json"
+      ? this.parseJsonOutput(rawOutput)
+      : rawOutput;
+  }
+
+  /**
+   * Check if this tool supports session management.
+   */
+  #hasSessionManagement(): boolean {
+    return this.#metadata.options.some(opt =>
+      opt.name === "resume" || opt.flag === "--resume" || opt.flag === "-r" ||
+      opt.name === "session" || opt.flag === "--session" || opt.flag === "-s"
+    );
+  }
+
+  /**
+   * Build command arguments from metadata and effective args.
+   * Handles tool-specific subcommands and session management.
+   */
+  #buildCommandArgs(
+    metadata: CliToolMetadata,
+    effectiveArgs: Record<string, any>
+  ): string[] {
     const cmdArgs: string[] = [];
-    const prompt = effectiveArgs.prompt;
+    const { sessionId, prompt, ...otherArgs } = effectiveArgs;
 
-    // Special handling for opencode: needs 'run' subcommand
-    // Must be added before flags
-    const isOpenCode = metadata.command === "opencode";
-    if (isOpenCode) {
+    // Add tool-specific subcommand (e.g., opencode needs 'run')
+    if (metadata.command === "opencode") {
       cmdArgs.push("run");
     }
 
-    // Add session flag if sessionId is provided and tool supports it
-    // Gemini uses --resume, OpenCode uses --session
-    if (sessionId) {
-      const isLatest = sessionId === "latest";
-      const hasContinueFlag = metadata.options.some(
-        opt => opt.name === "continue" || opt.flag === "--continue" || opt.flag === "-c"
-      );
+    // Add session management flag
+    this.#addSessionFlag(cmdArgs, metadata, sessionId);
 
-      if (isLatest && hasContinueFlag) {
-        cmdArgs.push("--continue");
-      } else if (hasSessionFlag) {
-        cmdArgs.push("--session", String(sessionId));
-      } else if (hasResumeFlag) {
-        cmdArgs.push("--resume", String(sessionId));
-      }
-    }
-
-    // Add prompt (as positional argument or via --prompt flag)
-    if (prompt !== undefined) {
-      // Check if tool uses --prompt flag or positional argument
-      const hasPromptFlag = metadata.options.some(
-        opt => opt.name === "prompt" || opt.flag === "--prompt" || opt.flag === "-p"
-      );
-      // opencode uses positional argument, gemini uses --prompt
-      if (hasPromptFlag && !isOpenCode) {
-        cmdArgs.push("--prompt", String(prompt));
-      } else {
-        cmdArgs.push(String(prompt));
-      }
-    }
+    // Add prompt
+    this.#addPrompt(cmdArgs, metadata, prompt);
 
     // Add other options
-    for (const [key, value] of Object.entries(effectiveArgs)) {
-      if (value === undefined || value === null || key === "prompt") continue;
+    for (const [key, value] of Object.entries(otherArgs)) {
+      if (value == null) continue;
 
       const option = metadata.options.find(opt => opt.name === key);
-      if (option) {
-        const flag = option.flag || `--${key}`;
-        if (option.type === "boolean") {
-          if (value === true) cmdArgs.push(flag);
-        } else {
-          cmdArgs.push(flag, String(value));
-        }
+      if (!option) continue;
+
+      const flag = option.flag || `--${key}`;
+      if (option.type === "boolean") {
+        if (value === true) cmdArgs.push(flag);
+      } else {
+        cmdArgs.push(flag, String(value));
       }
     }
 
-    // Execute the command
-    const rawOutput = await this.executeRaw(metadata.command, cmdArgs, onProgress);
+    return cmdArgs;
+  }
 
-    // Parse JSON output if format is json (opencode compatibility)
-    if (effectiveArgs.format === "json") {
-      return this.parseJsonOutput(rawOutput);
+  /**
+   * Add session management flag to command args.
+   */
+  #addSessionFlag(
+    cmdArgs: string[],
+    metadata: CliToolMetadata,
+    sessionId: string | undefined
+  ): void {
+    if (!sessionId) return;
+
+    // Special case: "latest" maps to --continue for tools that support it
+    if (sessionId === "latest" && this.#hasFlag(metadata, "continue")) {
+      cmdArgs.push("--continue");
+      return;
     }
 
-    return rawOutput;
+    // Use --session flag (opencode)
+    if (this.#hasFlag(metadata, "session")) {
+      cmdArgs.push("--session", sessionId);
+      return;
+    }
+
+    // Use --resume flag (gemini)
+    if (this.#hasFlag(metadata, "resume")) {
+      cmdArgs.push("--resume", sessionId);
+    }
+  }
+
+  /**
+   * Add prompt to command args.
+   * Uses --prompt flag if available, otherwise positional argument.
+   */
+  #addPrompt(
+    cmdArgs: string[],
+    metadata: CliToolMetadata,
+    prompt: string | undefined
+  ): void {
+    if (prompt === undefined) return;
+
+    const hasPromptFlag = this.#hasFlag(metadata, "prompt");
+    const isOpenCode = metadata.command === "opencode";
+
+    if (hasPromptFlag && !isOpenCode) {
+      cmdArgs.push("--prompt", prompt);
+    } else {
+      cmdArgs.push(prompt);
+    }
+  }
+
+  /**
+   * Check if metadata has a specific flag by name or flag property.
+   */
+  #hasFlag(metadata: CliToolMetadata, flagName: string): boolean {
+    return metadata.options.some(opt =>
+      opt.name === flagName ||
+      opt.flag === `--${flagName}` ||
+      opt.flag === `-${flagName}`
+    );
   }
 
   /**
@@ -305,13 +335,11 @@ export class GenericCliProvider extends BaseCliProvider {
     for (const line of lines) {
       try {
         const event = JSON.parse(line);
-        // Extract text from "type": "text" events
         if (event.type === "text" && event.part?.text) {
           textParts.push(event.part.text);
         }
       } catch {
         // Skip non-JSON lines
-        continue;
       }
     }
 
