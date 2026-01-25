@@ -83,8 +83,9 @@ export abstract class BaseCliProvider implements AIProvider {
   protected async executeRaw(
     command: string,
     args: string[],
-    onProgress?: (output: string) => void
+    onProgress?: (output: string) => void,
+    env?: Record<string, string>
   ): Promise<string> {
-    return executeCommand(command, args, onProgress);
+    return executeCommand(command, args, onProgress, undefined, env);
   }
 }

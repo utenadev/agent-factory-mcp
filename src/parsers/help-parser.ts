@@ -8,9 +8,16 @@ import type {
 } from "../types/cli-metadata.js";
 
 /**
+ * Parser strategy for different CLI help output formats.
+ */
+export type ParserStrategy = "gnu" | "go" | "custom";
+
+/**
  * Parser options for customizing help output parsing.
  */
 export interface ParserOptions {
+  /** Parser strategy to use (default: "gnu") */
+  strategy?: ParserStrategy;
   /** Custom regex pattern for matching option lines */
   optionRegex?: RegExp;
   /** Custom regex pattern for matching usage lines */
@@ -54,8 +61,12 @@ interface SubcommandInfo {
 /**
  * HelpParser - Parses CLI help output into structured CliToolMetadata.
  *
- * Supports commander.js style help output format:
- * - Short flags: -m, --model
+ * Supports multiple help output formats:
+ * - GNU style (commander.js): -m, --model value
+ * - Go style: -flag value (single dash only)
+ * - Custom: User-defined regex patterns
+ *
+ * Features:
  * - Type hints: [boolean], [string], [number], [array]
  * - Choices: [choices: "a", "b", "c"]
  * - Defaults: [default: false]
@@ -64,12 +75,20 @@ interface SubcommandInfo {
  */
 export class HelpParser {
   /**
-   * Default regex for commander.js style options.
+   * Default regex for GNU style options (commander.js).
    * Matches: -d, --debug     Run in debug mode?  [boolean] [default: false]
    * Also matches indented options with 6 spaces (commander.js default format)
    */
-  private static readonly DEFAULT_OPTION_REGEX =
+  private static readonly GNU_OPTION_REGEX =
     /^\s*(?:(-[a-zA-Z]),\s+)?(--[a-zA-Z0-9-]+)\s+(.*)$/;
+
+  /**
+   * Default regex for Go style options.
+   * Matches: -flag value or -flag
+   * Uses non-capturing group for shortFlag to maintain compatibility with GNU regex structure.
+   */
+  private static readonly GO_OPTION_REGEX =
+    /^\s*(-[a-zA-Z0-9-]+)\s+(.*)$/;
 
   /**
    * Regex for extracting type hints from descriptions.
@@ -172,6 +191,10 @@ export class HelpParser {
       subcommands: [],
     };
 
+    // Determine option regex based on strategy
+    const strategy = options.strategy ?? "gnu";
+    const optionRegex = options.optionRegex ?? this.getOptionRegexForStrategy(strategy);
+
     let currentSection: "description" | "positionals" | "options" | "commands" = "description";
     let descriptionBuffer: string[] = [];
 
@@ -189,11 +212,24 @@ export class HelpParser {
         continue;
       }
 
-      this.processLineBySection(line, currentSection, options, result, descriptionBuffer);
+      this.processLineBySection(line, currentSection, { ...options, optionRegex }, result, descriptionBuffer);
     }
 
     result.description = this.buildDescription(descriptionBuffer);
     return result;
+  }
+
+  /**
+   * Get the appropriate option regex for a given strategy.
+   */
+  private static getOptionRegexForStrategy(strategy: ParserStrategy): RegExp {
+    switch (strategy) {
+      case "go":
+        return this.GO_OPTION_REGEX;
+      case "gnu":
+      default:
+        return this.GNU_OPTION_REGEX;
+    }
   }
 
   /**
@@ -392,14 +428,33 @@ export class HelpParser {
     line: string,
     customRegex?: RegExp
   ): ParsedOption | null {
-    const regex = customRegex || this.DEFAULT_OPTION_REGEX;
+    const regex = customRegex || this.GNU_OPTION_REGEX;
     const match = line.match(regex);
 
     if (!match) {
       return null;
     }
 
-    const [, shortFlag, longFlag, rest] = match;
+    // Determine if this is GNU style (has long flag with --) or Go style (single -flag)
+    // GNU regex captures: [full, shortFlag?, longFlag, rest]
+    // Go regex captures: [full, longFlag, rest]
+    const isGnuStyle = regex === this.GNU_OPTION_REGEX && match.length >= 4;
+
+    let shortFlag: string | undefined;
+    let longFlag: string;
+    let rest: string;
+
+    if (isGnuStyle) {
+      // GNU style: [, shortFlag?, longFlag, rest]
+      shortFlag = match[1] || undefined;
+      longFlag = match[2]!;
+      rest = match[3]!;
+    } else {
+      // Go style or custom: [, longFlag, rest]
+      longFlag = match[1]!;
+      rest = match[2]!;
+    }
+
     if (!longFlag || !rest) {
       return null;
     }

@@ -27,7 +27,7 @@ const originalEnvPath = process.env.PATH;
 import {
   checkToolCompatibility,
   discoverCompatibleTools,
-  scanPathForExecutables,
+  findExecutable,
 } from "../src/utils/autoDiscovery.js";
 
 describe("AutoDiscovery", () => {
@@ -39,12 +39,16 @@ describe("AutoDiscovery", () => {
     process.env.PATH = originalEnvPath;
   });
 
-  describe("scanPathForExecutables", () => {
-    it("should return a list of executable files", async () => {
-      const executables = await scanPathForExecutables();
-      expect(Array.isArray(executables)).toBe(true);
-      expect(executables.length).toBeGreaterThan(0);
-      expect(executables.some(e => e.includes("qwen"))).toBe(true);
+  describe("findExecutable", () => {
+    it("should return path for qwen command", () => {
+      const path = findExecutable("qwen");
+      expect(path).not.toBeNull();
+      expect(path).toContain("qwen");
+    });
+
+    it("should return null for non-existent command", () => {
+      const path = findExecutable("non-existent-tool");
+      expect(path).toBeNull();
     });
   });
 
