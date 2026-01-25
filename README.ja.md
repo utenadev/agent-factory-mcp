@@ -236,17 +236,143 @@ Claude Desktop の設定ファイルに追加します：
   }
 }
 ```
+
+### Claude Code CLI
+
+```bash
+claude mcp add agent-factory -- npx agent-factory-mcp qwen gemini aider
+```
+
+## クイックスタート: AI エージェントツールを使う
+
+このガイドでは、AI エージェントツール（Claude CLI、Gemini CLI、OpenCode など）をセットアップして使用するまでの手順を説明します。
+
+### ステップ 1: AI エージェント CLI ツールをインストール
+
+まず、1つ以上の AI エージェント CLI ツールをインストールします：
+
+```bash
+# Claude CLI (Anthropic の公式 CLI)
+npm install -g @anthropic-ai/claude-cli
+
+# Gemini CLI (Google の AI CLI)
+npm install -g gemini-cli
+
+# OpenCode (別の AI コーディングアシスタント)
+npm install -g opencode
+```
+
+### ステップ 2: MCP クライアントを設定
+
+Claude Desktop の設定ファイルに AI エージェントツールを追加します：
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+```json
 {
   "mcpServers": {
-    "agent-factory": {
-      "command": "npx",
-      "args": ["agent-factory-mcp", "qwen", "gemini", "aider"]
+    "claude": {
+      "command": "agent-factory-mcp",
+      "args": ["claude"]
+    },
+    "gemini": {
+      "command": "agent-factory-mcp",
+      "args": ["gemini"]
+    },
+    "opencode": {
+      "command": "agent-factory-mcp",
+      "args": ["opencode"]
     }
   }
 }
 ```
 
-### Claude Code CLI
+### ステップ 3: Claude Desktop を再起動
+
+Claude Desktop を終了して再起動し、新しい MCP サーバー設定を読み込みます。
+
+### ステップ 4: AI エージェントツールを使用
+
+これで Claude から直接 AI エージェントツールを使用できるようになります：
+
+```
+# Claude CLI を使ってコードを書く
+Use claude to write a function that sorts an array
+
+# Gemini CLI を使ってテキストを分析
+Use gemini to summarize this document
+
+# OpenCode を使ってコードをリファクタリング
+Use opencode to refactor this function to be more efficient
+
+# 会話を継続
+Use claude with session "latest" to continue our previous discussion
+```
+
+### ステップ 5: (オプション) ツールをカスタマイズ
+
+プロジェクトルートに `ai-tools.json` を作成して、ツールの動作をカスタマイズします：
+
+```json
+{
+  "$schema": "./schema.json",
+  "version": "1.0",
+  "tools": [
+    {
+      "command": "claude",
+      "alias": "code-expert",
+      "description": "コードの作成とレビューの専門家",
+      "systemPrompt": "あなたはシニアソフトウェアエンジニアです。 clean で効率的なコードを書き、適切なエラーハンドリングを行ってください。",
+      "defaultArgs": {
+        "model": "claude-sonnet-4-20250514"
+      }
+    },
+    {
+      "command": "gemini",
+      "alias": "text-analyzer",
+      "description": "テキスト分析と要約のスペシャリスト",
+      "systemPrompt": "あなたはテキスト分析の専門家です。簡潔な要約と洞察を提供してください。"
+    }
+  ]
+}
+```
+
+### ステップ 6: (オプション) 環境変数を設定
+
+API キーやその他の環境変数が必要なツールの場合：
+
+```json
+{
+  "tools": [
+    {
+      "command": "openai",
+      "env": {
+        "OPENAI_API_KEY": "sk-your-api-key-here",
+        "OPENAI_BASE_URL": "https://api.openai.com/v1"
+      },
+      "defaultArgs": {
+        "model": "gpt-4"
+      }
+    }
+  ]
+}
+```
+
+> **セキュリティ上の注意**: API キーをバージョン管理にコミットしないでください。環境変数または安全なシークレットマネージャーを使用してください。
+
+### セッション管理の例
+
+複数回の呼び出し間で会話を継続：
+
+```
+# 最初のメッセージ
+Use claude: My name is Ken and I'm working on a TypeScript project
+
+# 同じセッションでフォローアップ
+Use claude with sessionId "latest": What's my name and what project am I working on?
+```
+
+## 使用例
 
 ```bash
 claude mcp add agent-factory -- npx agent-factory-mcp qwen gemini aider
@@ -305,8 +431,11 @@ await tool.execute({
 | `alias` | string | ❌ | ツールのカスタム名 (デフォルト: "ask-{command}") |
 | `description` | string | ❌ | ツールのカスタム説明 |
 | `systemPrompt` | string | ❌ | AI ペルソナ用のシステムプロンプト |
-| `providerType` | string | ❌ | プロバイダータイプ: "cli-auto" または "custom" |
+| `providerType` | string | ❌ | プロバイダータイプ: "cli-auto" または "custom" (デフォルト: "cli-auto") |
+| `parserStrategy` | string | ❌ | ヘルプパーサー戦略: "gnu", "go", "custom" (デフォルト: "gnu") |
+| `subcommands` | array | ❌ | 登録するサブコマンド |
 | `defaultArgs` | object | ❌ | 引数のデフォルト値 |
+| `env` | object | ❌ | ツール実行時の環境変数 (API キーなど) |
 | `version` | string | ❌ | 自動検出されたツールバージョン |
 
 ## 開発
