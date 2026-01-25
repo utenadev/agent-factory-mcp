@@ -19,6 +19,7 @@
 - **Per-Tool Server**: Run each AI tool as a separate MCP server for better resource management
 - **Multi-Provider**: Use multiple AI tools simultaneously (Claude, Gemini, Qwen, etc.)
 - **Runtime Registration**: Add new tools dynamically via MCP protocol
+- **Performance Caching**: Caches auto-discovered tools for faster startup times (24h TTL)
 
 ### Auto Discovery
 
@@ -455,7 +456,8 @@ bun install
 bun run build
 
 # Run tests
-bun test
+bun run test:unit   # Run unit tests (fast, CI-friendly)
+bun run test:e2e    # Run E2E tests (requires actual AI tools installed)
 
 # Type check
 bun run type-check
