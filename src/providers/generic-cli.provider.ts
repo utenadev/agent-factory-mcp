@@ -109,11 +109,17 @@ export class GenericCliProvider extends BaseCliProvider {
     metadata: CliToolMetadata,
     config: ToolConfig
   ): CliToolMetadata {
-    return {
-      ...metadata,
+    const overrides: Partial<CliToolMetadata> = {
       ...this.getStringOverrides(config),
       options: this.applyDefaultArgs(metadata.options, config.defaultArgs),
     };
+
+    // Add environment variables from config
+    if (config.env) {
+      overrides.env = config.env;
+    }
+
+    return { ...metadata, ...overrides };
   }
 
   /**
@@ -207,11 +213,26 @@ export class GenericCliProvider extends BaseCliProvider {
     const metadata = this.getMetadata();
     const cmdArgs = this.#buildCommandArgs(metadata, effectiveArgs);
 
-    const rawOutput = await this.executeRaw(metadata.command, cmdArgs, onProgress);
+    // Get environment variables from metadata if configured
+    const env = metadata.env;
+
+    const rawOutput = await this.executeRaw(metadata.command, cmdArgs, onProgress, env);
 
     return effectiveArgs.format === "json"
       ? this.parseJsonOutput(rawOutput)
       : rawOutput;
+  }
+
+  /**
+   * Override executeRaw to pass environment variables.
+   */
+  protected override async executeRaw(
+    command: string,
+    args: string[],
+    onProgress?: (output: string) => void,
+    env?: Record<string, string>
+  ): Promise<string> {
+    return executeCommand(command, args, onProgress, undefined, env);
   }
 
   /**

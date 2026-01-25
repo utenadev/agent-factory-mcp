@@ -8,12 +8,19 @@ export async function executeCommand(
   command: string,
   args: string[],
   onProgress?: (newOutput: string) => void,
-  timeoutMs: number = DEFAULT_COMMAND_TIMEOUT
+  timeoutMs: number = DEFAULT_COMMAND_TIMEOUT,
+  env?: Record<string, string>
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     Logger.debug(`Executing command: ${command} ${args.join(" ")}`);
 
-    const child = spawn(command, args, { stdio: ["pipe", "pipe", "pipe"] });
+    // Merge environment variables with existing process.env
+    const spawnEnv = env ? { ...process.env, ...env } : process.env;
+
+    const child = spawn(command, args, {
+      stdio: ["pipe", "pipe", "pipe"],
+      env: spawnEnv,
+    });
     child.stdin.end();
     let output = "";
     let errorOutput = "";

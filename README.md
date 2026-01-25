@@ -243,6 +243,135 @@ Add to your Claude Desktop config:
 claude mcp add agent-factory -- npx agent-factory-mcp qwen gemini aider
 ```
 
+## Quick Start: Using AI Agent Tools
+
+This guide shows you how to set up and use AI Agent tools (like Claude CLI, Gemini CLI, OpenCode) step by step.
+
+### Step 1: Install an AI Agent CLI Tool
+
+First, install one or more AI Agent CLI tools:
+
+```bash
+# Claude CLI (Anthropic's official CLI)
+npm install -g @anthropic-ai/claude-cli
+
+# Gemini CLI (Google's AI CLI)
+npm install -g gemini-cli
+
+# OpenCode (Another AI coding assistant)
+npm install -g opencode
+```
+
+### Step 2: Configure Your MCP Client
+
+Add the AI Agent tool to your Claude Desktop config:
+
+**macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "claude": {
+      "command": "agent-factory-mcp",
+      "args": ["claude"]
+    },
+    "gemini": {
+      "command": "agent-factory-mcp",
+      "args": ["gemini"]
+    },
+    "opencode": {
+      "command": "agent-factory-mcp",
+      "args": ["opencode"]
+    }
+  }
+}
+```
+
+### Step 3: Restart Claude Desktop
+
+Quit and restart Claude Desktop to load the new MCP server configuration.
+
+### Step 4: Use the AI Agent Tools
+
+Now you can use the AI Agent tools directly in Claude:
+
+```
+# Use Claude CLI to write code
+Use claude to write a function that sorts an array
+
+# Use Gemini CLI to analyze text
+Use gemini to summarize this document
+
+# Use OpenCode to refactor code
+Use opencode to refactor this function to be more efficient
+
+# Continue a conversation
+Use claude with session "latest" to continue our previous discussion
+```
+
+### Step 5: (Optional) Customize Your Tools
+
+Create `ai-tools.json` in your project root to customize tool behavior:
+
+```json
+{
+  "$schema": "./schema.json",
+  "version": "1.0",
+  "tools": [
+    {
+      "command": "claude",
+      "alias": "code-expert",
+      "description": "Expert at writing and reviewing code",
+      "systemPrompt": "You are a senior software engineer. Write clean, efficient code with proper error handling.",
+      "defaultArgs": {
+        "model": "claude-sonnet-4-20250514"
+      }
+    },
+    {
+      "command": "gemini",
+      "alias": "text-analyzer",
+      "description": "Specializes in text analysis and summarization",
+      "systemPrompt": "You are a text analysis expert. Provide concise summaries and insights."
+    }
+  ]
+}
+```
+
+### Step 6: (Optional) Configure Environment Variables
+
+For tools that require API keys or other environment variables:
+
+```json
+{
+  "tools": [
+    {
+      "command": "openai",
+      "env": {
+        "OPENAI_API_KEY": "sk-your-api-key-here",
+        "OPENAI_BASE_URL": "https://api.openai.com/v1"
+      },
+      "defaultArgs": {
+        "model": "gpt-4"
+      }
+    }
+  ]
+}
+```
+
+> **Security Note**: Never commit API keys to version control. Use environment variables or a secure secrets manager.
+
+### Session Management Example
+
+Continue conversations across multiple calls:
+
+```
+# First message
+Use claude: My name is Ken and I'm working on a TypeScript project
+
+# Follow-up in the same session
+Use claude with sessionId "latest": What's my name and what project am I working on?
+```
+
 ## Usage Examples
 
 ### Session Management
@@ -296,8 +425,11 @@ See `schema.json` for the full configuration schema:
 | `alias` | string | ❌ | Custom tool name (default: "ask-{command}") |
 | `description` | string | ❌ | Custom tool description |
 | `systemPrompt` | string | ❌ | System prompt for AI persona |
-| `providerType` | string | ❌ | Provider type: "cli-auto" or "custom" |
+| `providerType` | string | ❌ | Provider type: "cli-auto" or "custom" (default: "cli-auto") |
+| `parserStrategy` | string | ❌ | Help parser strategy: "gnu", "go", or "custom" (default: "gnu") |
+| `subcommands` | array | ❌ | Subcommands to register |
 | `defaultArgs` | object | ❌ | Default argument values |
+| `env` | object | ❌ | Environment variables for tool execution (e.g., API keys) |
 | `version` | string | ❌ | Auto-detected tool version |
 
 ## Development

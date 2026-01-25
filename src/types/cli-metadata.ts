@@ -81,4 +81,7 @@ export interface CliToolMetadata {
 
   /** Optional system prompt for AI agent persona configuration */
   systemPrompt?: string;
+
+  /** Optional environment variables for the tool execution */
+  env?: Record<string, string>;
 }
