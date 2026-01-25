@@ -11,12 +11,12 @@
     "build": "tsc",
     "start": "bun run dist/index.js",
     "dev": "tsc && bun run dist/index.js",
-    "test": "bun test test/**/*.test.js",
+    "test": "bun test test/**/*.test.{js,ts}",
     "type-check": "tsc --noEmit",
-    "lint": "bun biome lint src",
-    "lint:fix": "bun biome lint src --write",
-    "format": "bun biome format src --write",
-    "format:check": "bun biome format src"
+    "lint": "bun x @biomejs/biome lint src",
+    "lint:fix": "bun x @biomejs/biome lint src --write",
+    "format": "bun x @biomejs/biome format src --write",
+    "format:check": "bun x @biomejs/biome format src"
   },
   "keywords": [
     "mcp",
