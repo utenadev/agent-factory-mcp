@@ -231,24 +231,32 @@ async function initializeFromConfig(): Promise<void> {
   await initializeFromCliArgs();
 
   // Load configuration file
-  const loadResult = ConfigLoader.load();
+  let loadResult = ConfigLoader.load();
 
   if (!loadResult.configPath) {
     Logger.debug("No configuration file found, running auto-discovery...");
     const discoveryResult = await ConfigLoader.autoDiscoverAndAddTools();
-    if (!discoveryResult.success) {
+    if (discoveryResult.success) {
+      // Reload config after successful discovery
+      loadResult = ConfigLoader.load();
+    } else {
       Logger.error("Auto-discovery failed:", discoveryResult.error);
     }
   }
 
   if (loadResult.error) {
-    Logger.error(`Failed to load config from ${loadResult.configPath}:`, loadResult.error);
+    Logger.error(`Failed to load config from ${loadResult.configPath || "config"}:`, loadResult.error);
+    return;
+  }
+
+  if (!loadResult.config) {
+    Logger.debug("No configuration found or loaded");
     return;
   }
 
   Logger.debug(`Loaded configuration from ${loadResult.configPath || "auto-discovery"}`);
 
-  const config = loadResult.config!;
+  const config = loadResult.config;
   const tools = config.tools || [];
 
   if (tools.length === 0) {
