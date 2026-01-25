@@ -12,6 +12,8 @@
     "start": "bun run dist/index.js",
     "dev": "tsc && bun run dist/index.js",
     "test": "bun test test/**/*.test.{js,ts}",
+    "test:unit": "bun test test/**/*.test.{js,ts} --ignore test/e2e-ai-flow.test.ts",
+    "test:e2e": "bun test test/e2e-ai-flow.test.ts",
     "type-check": "tsc --noEmit",
     "lint": "bun x @biomejs/biome lint src",
     "lint:fix": "bun x @biomejs/biome lint src --write",
