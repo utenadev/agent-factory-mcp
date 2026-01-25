@@ -8,31 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- CLI argument parsing for quick tool registration
-- systemPrompt support for AI agent persona configuration
-- Comprehensive documentation (ARCHITECTURE.md, API.md)
-- **Auto-Discovery** - Automatic detection of compatible AI CLI tools from PATH
+- **Claude CLI Integration** - Add `claude` to AI_TOOL_WHITELIST
+- **Session Management** - Continue conversations using `sessionId` parameter
+- **Per-Tool Servers** - Run each AI tool as separate MCP server
+- **OpenCode Support** - Add `opencode` to supported tools (JSON output parsing)
+- **Code Simplification** - Refactor `generic-cli.provider.ts` with private methods
 
 ### Changed
-- Renamed project from qwencode-mcp-server to agent-factory-mcp
-- Category generalized from "qwen" to "ai" for broader provider support
-- **Migrated runtime from Node.js to Bun** (>= 1.0.0)
-- **Adopted go-task as task runner** (see Taskfile.yml)
-- **Replaced ESLint/Prettier with Biome** for linting and formatting
-- **Migrated tests from Node.js built-in test runner to Bun test**
+- **Bun as Primary Runtime** - Documentation updated to reflect Bun-first approach
+- **CLI Tools Support** - Expand to support Claude (v2.1.19), Gemini (v0.25.2), OpenCode (v1.1.35)
 
-### Changed
-- Renamed project from qwencode-mcp-server to agent-factory-mcp
-- Category generalized from "qwen" to "ai" for broader provider support
+### Fixed
+- **CLI Tool Hangups** - Close stdin to prevent interactive mode blocking
+- **Session Continuation** - Map `sessionId: "latest"` to `--continue` for tools that support it
 
-### Refactored
-- Simplified help-parser.ts with better code organization
-- Simplified index.ts with extracted helper methods
-- Simplified configLoader.ts with file operation helpers
-- Simplified simple-tools.ts with helper functions
-- Simplified progressManager.ts with progress helpers
-- Simplified registry.ts with functional programming patterns
-- Simplified generic-cli.provider.ts with metadata override helpers
+### Documentation
+- Updated README.md and README.ja.md with session management examples
+- Added acknowledgments to [jamubc/gemini-mcp-tool](https://github.com/jamubc/gemini-mcp-tool)
+- Updated WorkingLog.md with 270 lines of development history
+
+### Test Coverage
+- Session continuation verified with Gemini (context preservation)
+- Claude integration tested with --print flag
+- OpenCode JSON parsing and session continuation verified
+- All functionality preserved after code refactoring
 
 ## [1.0.0] - 2026-01-24
 
