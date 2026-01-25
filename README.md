@@ -359,6 +359,10 @@ agent-factory-mcp/
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+## Acknowledgments
+
+This project was inspired by [jamubc/gemini-mcp-tool](https://github.com/jamubc/gemini-mcp-tool).
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
