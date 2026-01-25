@@ -6,6 +6,7 @@ import { Logger } from "./logger.js";
 // AI Agentツールのホワイトリスト
 // 安全性とパフォーマンスのために、既知のAIツールのみを検出対象とします
 const AI_TOOL_WHITELIST = new Set([
+  "claude",
   "opencode",
   "gemini",
 ]);
