@@ -606,3 +606,52 @@ async function testOpencodeSession() {
 - OpenCode: JSON パースとセッション継続確認 ✅
 - コード簡素化: 全機能維持を確認 ✅
 
+---
+
+## 2026-01-26 (深夜)
+
+### テスト戦略の強化と起動パフォーマンスの最適化
+
+#### 1. ハイブリッドテスト戦略の導入
+- ユニットテスト（ロジック検証）と E2E テスト（実機連携）を分離するハイブリッド戦略を提案・実施。
+- `test/e2e-ai-flow.test.ts` を作成し、実際の AI CLI ツール（claude, opencode, gemini）を用いた疎通確認を自動化。
+- `package.json` のテストスクリプトを `test:unit`（CI用）と `test:e2e`（環境依存）に分割し、`test:unit` ではファイルを明示的に指定することで実行の確実性を向上。
+
+#### 2. 起動パフォーマンスの最適化（キャッシング）
+- `src/utils/cacheManager.ts` を実装し、Auto-Discovery の結果を 24 時間キャッシュする仕組みを導入。
+- `~/.agent-factory-mcp/tools-cache.json` にメタデータを保存。
+- 次回起動時からはキャッシュから即座にツールをロードすることで、`--help` 解析のオーバーヘッドを解消し、サーバー起動時間を大幅に短縮。
+
+#### 3. CI/CD 設定の追加
+- `.github/workflows/ci.yml` を作成。
+- GitHub Actions 上で Bun 環境をセットアップし、ビルド、リント、ユニットテストを自動実行するパイプラインを構築。
+
+#### 4. Task 連携の強化
+- `Taskfile.yml` を更新し、`task test-unit`, `task test-e2e`, `task check` などのタスクを追加。
+- `task check` により、型チェック、リント、ユニットテストを一括で実行可能に。
+- 開発者が `task` コマンドを通じて一貫したワークフローを実行できるように整備。
+
+#### 5. ドキュメントの充実
+- `docs/TESTING.md` を作成（日本語）。テスト戦略の詳細や Auto-Discovery のテスト方針を明文化。
+- README に「自動検出機能」と「パフォーマンスキャッシュ」のセクションを追加。
+- 開発ガイドに `task` コマンドの使用方法を追記。
+- MistralVibe のレポートに基づき、`docs/ROADMAP.md` に今後の品質向上タスク（`BaseCliProvider` のテスト強化等）を追記。
+
+#### 成果
+- **信頼性**: 実機での動作確認を自動化しつつ、CI環境での安定性を確保。
+- **パフォーマンス**: キャッシュにより「設定なし」の状態でも高速な起動を実現。
+- **開発者体験**: 分かりやすいテストコマンドと詳細なテストドキュメントを整備。
+
+### コミット一覧
+- d7bba7e test: add E2E AI agent integration test and switch to bun
+- 925b886 docs: add Auto Discovery section to READMEs
+- f40ba5f chore: separate unit and e2e test scripts
+- a693a39 feat: implement tool discovery caching and add CI workflow
+- 2cf4730 chore: update Taskfile and docs to support new test structure
+- 54eda85 docs: add comprehensive testing strategy documentation
+- cb6bf86 docs: translate TESTING.md to Japanese
+- 8baf97e fix: ensure test:unit runs all relevant tests
+- 67baa4a docs: document caching feature and updated test commands
+- 0e79401 docs: add testing improvement tasks to roadmap
+
+
