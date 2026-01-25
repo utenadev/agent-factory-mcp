@@ -39,6 +39,7 @@ const ToolConfigSchema = z.object({
   alias: z.string().optional(),
   description: z.string().optional(),
   systemPrompt: z.string().optional(),
+  version: z.string().optional(),
   env: z.record(z.string()).optional(),
 });
 
@@ -326,6 +327,9 @@ export class ConfigLoader {
           providerType: "cli-auto",
           enabled: true,
         };
+        if (metadata.version) {
+          toolConfig.version = metadata.version;
+        }
         this.upsertTool(existingConfig, toolConfig);
       }
 

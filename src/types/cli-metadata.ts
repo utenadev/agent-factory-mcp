@@ -73,6 +73,9 @@ export interface CliToolMetadata {
   /** Key-value options */
   options: CliOption[];
 
+  /** Tool version (optional) */
+  version?: string | undefined;
+
   /** For subcommand tools: the subcommand this metadata represents (if any) */
   subcommand?: string;
 

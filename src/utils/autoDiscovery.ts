@@ -31,6 +31,32 @@ export function findExecutable(command: string): string | null {
 }
 
 /**
+ * Attempts to get the version of a CLI tool.
+ * @param executablePath Path to the executable.
+ * @returns Version string if found, undefined otherwise.
+ */
+export function getToolVersion(executablePath: string): string | undefined {
+  try {
+    const versionOutput = execSync(`"${executablePath}" --version 2> /dev/null || "${executablePath}" -v 2> /dev/null || echo ""`, {
+      timeout: 5000,
+    }).toString().trim();
+    
+    if (!versionOutput) return undefined;
+
+    // Simple regex to find something that looks like a version number (e.g., 1.2.3, v0.1.0, 0.25.2)
+    const versionMatch = versionOutput.match(/(v?\d+\.\d+(\.\d+)?(-[\w\.]+)*)/i);
+    const version = versionMatch ? versionMatch[0] : versionOutput.split('\n')[0]?.trim();
+    
+    if (version) {
+      Logger.debug(`Detected version for ${executablePath}: ${version}`);
+    }
+    return version || undefined;
+  } catch (error) {
+    return undefined;
+  }
+}
+
+/**
  * Checks if a CLI tool is compatible (has --help output that can be parsed).
  * @param executablePath Path to the executable.
  * @returns CliToolMetadata if compatible, null otherwise.
@@ -50,13 +76,16 @@ export async function checkToolCompatibility(
     }
 
     const helpOutput = execSync(`"${executablePath}" --help 2> /dev/null || echo ""`, {
-      timeout: 5000,
+      timeout: 10000,
     }).toString();
     const metadata = HelpParser.parse(commandName, helpOutput);
 
     if (!metadata || !metadata.toolName || !metadata.command) {
       return null;
     }
+
+    // Attempt to get version
+    metadata.version = getToolVersion(executablePath);
 
     return metadata;
   } catch (error) {
