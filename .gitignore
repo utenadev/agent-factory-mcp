@@ -27,3 +27,4 @@ npm-debug.log*
 .env
 .env.local
 ai-tools.json
+**/CLAUDE.md
