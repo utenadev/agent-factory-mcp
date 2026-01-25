@@ -145,15 +145,18 @@ export class GenericCliProvider extends BaseCliProvider {
 
   /**
    * Get the metadata for this tool.
-   * Adds sessionId option for session management (Gemini-compatible tools).
+   * Adds sessionId option for session management (Gemini/OpenCode-compatible tools).
    */
   getMetadata(): CliToolMetadata {
-    // Check if this tool supports session management (has --resume flag)
-    const hasResumeFlag = this.#metadata.options.some(
-      opt => opt.name === "resume" || opt.flag === "--resume" || opt.flag === "-r"
+    // Check if this tool supports session management
+    // Gemini uses --resume, OpenCode uses --session
+    const hasSessionFlag = this.#metadata.options.some(
+      opt =>
+        opt.name === "resume" || opt.flag === "--resume" || opt.flag === "-r" ||
+        opt.name === "session" || opt.flag === "--session" || opt.flag === "-s"
     );
 
-    if (!hasResumeFlag) {
+    if (!hasSessionFlag) {
       return this.#metadata;
     }
 
@@ -185,7 +188,7 @@ export class GenericCliProvider extends BaseCliProvider {
 
   /**
    * Execute the CLI command with environment variables from config.
-   * Handles session management for tools that support --resume flag.
+   * Handles session management for tools that support --resume or --session flag.
    */
   override async execute(
     args: Record<string, any>,
@@ -197,19 +200,33 @@ export class GenericCliProvider extends BaseCliProvider {
     const sessionId = effectiveArgs.sessionId;
     delete effectiveArgs.sessionId;
 
-    // Get metadata to check for resume flag
+    // Get metadata to check for session flags
     const metadata = this.getMetadata();
     const hasResumeFlag = metadata.options.some(
       opt => opt.name === "resume" || opt.flag === "--resume" || opt.flag === "-r"
+    );
+    const hasSessionFlag = metadata.options.some(
+      opt => opt.name === "session" || opt.flag === "--session" || opt.flag === "-s"
     );
 
     // Build arguments for the command
     const cmdArgs: string[] = [];
     const prompt = effectiveArgs.prompt;
 
-    // Add --resume flag if sessionId is provided and tool supports it
-    if (hasResumeFlag && sessionId) {
-      cmdArgs.push("--resume", String(sessionId));
+    // Add session flag if sessionId is provided and tool supports it
+    // Gemini uses --resume, OpenCode uses --session
+    if (sessionId) {
+      if (hasSessionFlag) {
+        cmdArgs.push("--session", String(sessionId));
+      } else if (hasResumeFlag) {
+        cmdArgs.push("--resume", String(sessionId));
+      }
+    }
+
+    // Special handling for opencode: needs 'run' subcommand
+    const isOpenCode = metadata.command === "opencode";
+    if (isOpenCode) {
+      cmdArgs.push("run");
     }
 
     // Add prompt (as positional argument or via --prompt flag)
@@ -218,7 +235,8 @@ export class GenericCliProvider extends BaseCliProvider {
       const hasPromptFlag = metadata.options.some(
         opt => opt.name === "prompt" || opt.flag === "--prompt" || opt.flag === "-p"
       );
-      if (hasPromptFlag) {
+      // opencode uses positional argument, gemini uses --prompt
+      if (hasPromptFlag && !isOpenCode) {
         cmdArgs.push("--prompt", String(prompt));
       } else {
         cmdArgs.push(String(prompt));
@@ -241,6 +259,37 @@ export class GenericCliProvider extends BaseCliProvider {
     }
 
     // Execute the command
-    return this.executeRaw(metadata.command, cmdArgs, onProgress);
+    const rawOutput = await this.executeRaw(metadata.command, cmdArgs, onProgress);
+
+    // Parse JSON output if format is json (opencode compatibility)
+    if (effectiveArgs.format === "json") {
+      return this.parseJsonOutput(rawOutput);
+    }
+
+    return rawOutput;
+  }
+
+  /**
+   * Parse JSON output from tools like opencode.
+   * Extracts text content from JSON events.
+   */
+  private parseJsonOutput(rawOutput: string): string {
+    const lines = rawOutput.split("\n").filter(line => line.trim().length > 0);
+    const textParts: string[] = [];
+
+    for (const line of lines) {
+      try {
+        const event = JSON.parse(line);
+        // Extract text from "type": "text" events
+        if (event.type === "text" && event.part?.text) {
+          textParts.push(event.part.text);
+        }
+      } catch {
+        // Skip non-JSON lines
+        continue;
+      }
+    }
+
+    return textParts.length > 0 ? textParts.join("\n") : rawOutput;
   }
 }

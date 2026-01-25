@@ -336,3 +336,148 @@ runDiscovery().catch(err => {
 
 ### コミット一覧
 - 95c9ad2 docs: add CHANGELOG.md and CONTRIBUTING.md
+- 4e504e1 docs: fix WorkingLog.md commit hash inconsistencies and add today's entry
+
+---
+
+## 2026-01-25 (後半)
+
+### Claude-Gemini-OpenCode MCP 統合とセッション管理機能の実装
+
+#### 1. Claude を AI_TOOL_WHITELIST に追加
+- `src/utils/autoDiscovery.ts` のホワイトリストに `"claude"` を追加
+- Auto-Discovery により以下のツールが正常に検出されることを確認:
+  - `claude` (v2.1.19) - 39オプション
+  - `opencode` (v1.1.35) - 13オプション
+  - `gemini` (v0.25.2) - 20オプション
+
+#### 2. MCP サーバーのツール単位起動を確認
+- CLI 引数でツールを指定して起動できることを確認:
+  ```bash
+  agent-factory-mcp claude     # claude のみ
+  agent-factory-mcp gemini     # gemini のみ
+  agent-factory-mcp opencode   # opencode のみ
+  ```
+- Claude Desktop 設定例:
+  ```json
+  {
+    "mcpServers": {
+      "claude": { "command": "agent-factory-mcp", "args": ["claude"] },
+      "gemini": { "command": "agent-factory-mcp", "args": ["gemini"] },
+      "opencode": { "command": "agent-factory-mcp", "args": ["opencode"] }
+    }
+  }
+  ```
+
+#### 3. セッション管理機能の実装
+- `GenericCliProvider` にセッション管理機能を追加
+- `--resume` (gemini) と `--session` (opencode) フラグを自動検出
+- 呼び元が `sessionId` パラメータを提供することで会話を継続可能に
+
+**実装内容 (`src/providers/generic-cli.provider.ts`):**
+```typescript
+// sessionId オプションの自動追加
+getMetadata(): CliToolMetadata {
+  const hasSessionFlag = this.#metadata.options.some(
+    opt => opt.name === "resume" || opt.name === "session" || ...
+  );
+  if (hasSessionFlag) {
+    return {
+      ...this.#metadata,
+      options: [
+        ...this.#metadata.options,
+        {
+          name: "sessionId",
+          flag: "--session-id",
+          type: "string",
+          description: "Session ID to resume. If not provided, starts a new session.",
+          required: false,
+        },
+      ],
+    };
+  }
+}
+
+// execute() でのセッション管理
+override async execute(args: Record<string, any>): Promise<string> {
+  const sessionId = effectiveArgs.sessionId;
+  if (sessionId && hasSessionFlag) {
+    cmdArgs.push("--session", String(sessionId));  // opencode
+  } else if (sessionId && hasResumeFlag) {
+    cmdArgs.push("--resume", String(sessionId));   // gemini
+  }
+  // ...
+}
+```
+
+**テスト結果:**
+```javascript
+// Q1: 新しいセッション
+await tool.execute({ prompt: "私の名前はケンです" });
+// → "I will remember that your name is Ken."
+
+// Q2: セッションを再開
+await tool.execute({ sessionId: "latest", prompt: "私の名前は？" });
+// → "Your name is Ken."  ✓ 記憶されている！
+
+// ジョジョ質問テスト
+await tool.execute({ prompt: "ジョジョの何部が好き？" });
+// → "第7部「スティール・ボール・ラン」です。"
+
+await tool.execute({ sessionId: "latest", prompt: "その部で一番好きなスタンドは？" });
+// → "「タスク」です。"  ✓ 第7部を覚えている！
+```
+
+#### 4. OpenCode 互換性の問題と対応
+- OpenCode は起動に時間がかかり、タイムアウトが発生
+- `--format json` と有効なモデル指定が必要
+- JSON レスポンスをパースしてテキストを抽出する機能を実装
+
+**実装:**
+```typescript
+// JSON パース機能
+private parseJsonOutput(rawOutput: string): string {
+  const lines = rawOutput.split("\n");
+  const textParts: string[] = [];
+  for (const line of lines) {
+    try {
+      const event = JSON.parse(line);
+      if (event.type === "text" && event.part?.text) {
+        textParts.push(event.part.text);
+      }
+    } catch { continue; }
+  }
+  return textParts.length > 0 ? textParts.join("\n") : rawOutput;
+}
+```
+
+**対応策:**
+- OpenCode をデフォルトで無効化 (`enabled: false`)
+- `ai-tools.json` に設定例を追加:
+  ```json
+  {
+    "command": "opencode",
+    "enabled": false,  // デフォルト無効
+    "defaultArgs": {
+      "format": "json",
+      "model": "google/gemini-2.5-flash"
+    }
+  }
+  ```
+
+#### 5. テストコード
+- `test-all-tools.js` - すべてのツールのロード確認
+- `test-gemini-mcp.js` - MCP ツールメタデータ確認
+- `test-gemini-conversation.js` - Gemini との会話テスト
+- `test-session-mgmt2.js` - セッション管理機能テスト
+- `test-jojo-questions.js` - ジョジョ質問テスト（セッション継続確認）
+
+### 成果
+- **セッション管理**: 呼び元が `sessionId` を管理することで会話の継続が可能に
+- **ツール単位起動**: CLI 引数でツールを指定して起動できる
+- **OpenCode 対応**: JSON パースとデフォルト設定に対応
+- **成功率**: gemini ✓, claude ✓, opencode ⚠️ (デフォルト無効)
+
+### コミット一覧
+- 892fc5e feat: add claude to AI_TOOL_WHITELIST and test MCP integration with gemini
+- 6226490 feat: add session management for AI CLI tools
