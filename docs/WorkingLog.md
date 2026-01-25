@@ -202,9 +202,10 @@
 - **総合評価**: ⭐⭐⭐⭐☆ → ⭐⭐⭐⭐⭐
 
 ### コミット一覧
-- 8bdcc78 refactor: Migrate to Bun runtime and adopt Biome + go-task
-- 46a8b5e feat: Implement CLI Help Parser for auto-discovery (ROADMAP Phase 1)
-- 6c782fd feat: Add configuration-driven tool registration (ROADMAP Phase 2)
+- 7111ec8 refactor: Migrate to Bun runtime and adopt Biome + go-task
+- 8bdcc78 feat: Implement CLI Help Parser for auto-discovery (ROADMAP Phase 1)
+- 46a8b5e feat: Add configuration-driven tool registration (ROADMAP Phase 2)
+- 6c782fd feat: Add subcommand parsing support (ROADMAP Phase 3)
 - 17ec148 feat: Add runtime tool registration (ROADMAP Phase 4)
 - 4f5cf80 feat: Add systemPrompt support and CLI argument tool registration
 - 1d7f807 docs: Rename to agent-factory-mcp and refresh README
@@ -303,3 +304,35 @@ runDiscovery().catch(err => {
 - 6c81bf1 feat: enhance auto-discovery with whitelist support and documentation
 - c45afb3 feat: add tool version tracking to auto-discovery and configuration
 - b66865c docs: update README.md and sync README.ja.md
+- 5bf134e docs: update WorkingLog.md with auto-discovery optimization details
+
+---
+
+## 2026-01-25 (午後)
+
+### ドキュメントの追加と修正
+
+#### 1. プロジェクトドキュメントの追加
+- `CHANGELOG.md` を追加 - Keep a Changelog 形式の変更履歴
+- `CONTRIBUTING.md` を追加 - コントリビューションガイドライン
+  - Bun を使用した開発環境セットアップ
+  - プロジェクト構造の説明
+  - コミットメッセージ規約（Conventional Commits）
+  - Biome によるコーディング規約
+  - テストガイドライン
+  - プルリクエストプロセス
+
+#### 2. WorkingLog.md の修正
+- コミットハッシュとメッセージの不一致を修正
+  - 8bdcc78: "refactor: Migrate to Bun..." → "feat: Implement CLI Help Parser..." (ROADMAP Phase 1)
+  - 46a8b5e: "feat: Implement CLI Help Parser..." → "feat: Add configuration-driven..." (ROADMAP Phase 2)
+  - 6c782fd: "feat: Add configuration-driven..." → "feat: Add subcommand parsing support..." (ROADMAP Phase 3)
+- 7111ec8 "refactor: Migrate to Bun runtime and adopt Biome + go-task" を追加
+
+### 成果
+- **ドキュメント品質**: ⭐⭐⭐⭐ → ⭐⭐⭐⭐⭐
+- **開発者体験**: CONTRIBUTING.md により新規参入者のオンボーディングが向上
+- **履歴管理**: CHANGELOG.md によりリリースノート作成が容易に
+
+### コミット一覧
+- 95c9ad2 docs: add CHANGELOG.md and CONTRIBUTING.md
