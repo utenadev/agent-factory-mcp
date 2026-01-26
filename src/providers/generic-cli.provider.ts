@@ -1,6 +1,7 @@
 import { BaseCliProvider } from "./base-cli.provider.js";
 import { HelpParser } from "../parsers/help-parser.js";
 import { executeCommand } from "../utils/commandExecutor.js";
+import { ArgumentValidator } from "../utils/argumentValidator.js";
 import type { CliToolMetadata } from "../types/cli-metadata.js";
 import type { ToolConfig } from "../utils/configLoader.js";
 
@@ -27,6 +28,16 @@ export class GenericCliProvider extends BaseCliProvider {
     this.#metadata = metadata;
     this.#config = config;
     this.#helpOutput = helpOutput;
+
+    // Enable Gemini validation for tools that support session management
+    this.securityConfig.enableGeminiValidation = this.#hasSessionManagement();
+
+    // Set validation context based on tool type
+    this.securityConfig.validationContext = {
+      argumentType: "prompt", // Most AI tools accept prompt arguments
+      allowMultiline: true,
+      allowRelativePaths: false,
+    };
   }
 
   /**
@@ -199,6 +210,42 @@ export class GenericCliProvider extends BaseCliProvider {
   /** Get the cached help output (useful for debugging). */
   getHelpOutput(): string | null {
     return this.#helpOutput;
+  }
+
+  /**
+   * Validate arguments with @ syntax and session ID checking.
+   * Override to add Gemini-specific validations.
+   */
+  protected override validateArguments(
+    args: Record<string, any>,
+    metadata: CliToolMetadata
+  ): void {
+    // Use parent class validation
+    super.validateArguments(args, metadata);
+
+    // Additional @ syntax validation for prompts
+    const validator = new ArgumentValidator();
+
+    // Check prompt argument for @ syntax
+    const promptValue = args[metadata.argument?.name || "prompt"];
+    if (typeof promptValue === "string") {
+      // Validate @ syntax if present
+      if (promptValue.includes("@")) {
+        // Split by spaces and check each @ syntax
+        const parts = promptValue.split(/\s+/);
+        for (const part of parts) {
+          if (part.startsWith("@")) {
+            validator.validateAtSyntax(part);
+          }
+        }
+      }
+    }
+
+    // Validate session ID if present
+    const sessionId = args.sessionId || args.session || args.resume;
+    if (typeof sessionId === "string") {
+      validator.validateSessionId(sessionId);
+    }
   }
 
   /**

@@ -10,29 +10,29 @@ describe("AutoDiscovery (Integration Tests)", () => {
   // Tests use real system commands - these are true integration tests
 
   describe("findExecutable", () => {
-    it("should find common system commands", () => {
+    it("should find common system commands", async () => {
       // Test with commands that should exist on all systems
       if (process.platform !== "win32") {
-        const lsPath = findExecutable("ls");
+        const lsPath = await findExecutable("ls");
         expect(lsPath).not.toBeNull();
         expect(lsPath).toMatch(/ls/);
       } else {
-        const wherePath = findExecutable("where");
+        const wherePath = await findExecutable("where");
         expect(wherePath).not.toBeNull();
         expect(wherePath).toMatch(/where/);
       }
     });
 
-    it("should return null for non-existent command", () => {
-      const path = findExecutable("this-command-definitely-does-not-exist-12345");
+    it("should return null for non-existent command", async () => {
+      const path = await findExecutable("this-command-definitely-does-not-exist-12345");
       expect(path).toBeNull();
     });
   });
 
   describe("getToolVersion", () => {
-    it("should get version for commands that support --version", () => {
+    it("should get version for commands that support --version", async () => {
       // Use 'node' which should be available since we're running Bun
-      const version = getToolVersion(process.execPath);
+      const version = await getToolVersion(process.execPath);
       expect(version).toBeDefined();
       // Node version should be something like "v20.x.x" or "v18.x.x"
       expect(version).toMatch(/\d+\.\d+/);
@@ -43,7 +43,7 @@ describe("AutoDiscovery (Integration Tests)", () => {
     it("should return null for non-whitelisted tools", async () => {
       if (process.platform !== "win32") {
         // 'ls' is not in the AI tool whitelist
-        const lsPath = findExecutable("ls");
+        const lsPath = await findExecutable("ls");
         if (lsPath) {
           const metadata = await checkToolCompatibility(lsPath);
           // Should return null because ls is not in the whitelist
@@ -70,8 +70,11 @@ describe("AutoDiscovery (Integration Tests)", () => {
       }
     });
 
-    it("should have correct length based on installed tools", () => {
-      const installedTools = ["claude", "opencode", "gemini"].filter(t => findExecutable(t) !== null);
+    it("should have correct length based on installed tools", async () => {
+      const installedTools = [];
+      for (const t of ["claude", "opencode", "gemini"]) {
+        if (await findExecutable(t)) installedTools.push(t);
+      }
       console.log(`Installed AI tools: ${installedTools.join(", ") || "none"}`);
       console.log(`Discovered tools: ${discoveredTools.map(t => t.command).join(", ") || "none"}`);
       expect(discoveredTools.length).toBe(installedTools.length);
@@ -86,20 +89,27 @@ describe("AutoDiscovery (AI Tool-Specific Tests)", () => {
 
   // Test each AI tool individually
   for (const toolName of aiTools) {
-    const toolPath = findExecutable(toolName);
-
     describe(`${toolName}`, () => {
+      let toolPath: string | null;
+
+      beforeAll(async () => {
+        toolPath = await findExecutable(toolName);
+      });
+
       if (!toolPath) {
         it.skip(`${toolName} is not installed, skipping`, () => {});
         return;
       }
 
-      it(`should be found in PATH`, () => {
+      it(`should be found in PATH`, async () => {
+        toolPath = await findExecutable(toolName);
         expect(toolPath).not.toBeNull();
       });
 
-      it(`should have a version`, () => {
-        const version = getToolVersion(toolPath!);
+      it(`should have a version`, async () => {
+        const path = await findExecutable(toolName);
+        if (!path) return;
+        const version = await getToolVersion(path);
         if (version) {
           expect(version).toBeDefined();
           console.log(`${toolName} version: ${version}`);
@@ -107,7 +117,9 @@ describe("AutoDiscovery (AI Tool-Specific Tests)", () => {
       });
 
       it(`should be compatible with help parser`, async () => {
-        const metadata = await checkToolCompatibility(toolPath!);
+        const path = await findExecutable(toolName);
+        if (!path) return;
+        const metadata = await checkToolCompatibility(path);
         // Some tools may not be compatible if they don't have standard --help output
         if (metadata) {
           expect(metadata.command).toBe(toolName);

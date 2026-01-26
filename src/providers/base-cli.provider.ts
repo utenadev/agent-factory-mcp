@@ -1,5 +1,11 @@
 import type { CliToolMetadata } from "../types/cli-metadata.js";
-import { executeCommand } from "../utils/commandExecutor.js";
+import { executeCommand, ExecuteCommandOptions } from "../utils/commandExecutor.js";
+import {
+  ArgumentValidator,
+  ValidationContext,
+  validateWithGeminiRequirements,
+} from "../utils/argumentValidator.js";
+import { SecurityError } from "../utils/errors.js";
 
 /**
  * Interface for any AI provider.
@@ -11,11 +17,38 @@ export interface AIProvider {
 }
 
 /**
+ * Security configuration for CLI providers.
+ */
+export interface SecurityConfig {
+  /** Whether to enable argument validation */
+  enableValidation?: boolean;
+
+  /** Whether to enable audit logging */
+  enableAuditLog?: boolean;
+
+  /** Whether to enable Gemini-specific validations (@ syntax, session IDs) */
+  enableGeminiValidation?: boolean;
+
+  /** Custom validation context */
+  validationContext?: ValidationContext;
+}
+
+/**
  * Abstract base class for CLI-based AI providers.
  * Handles the mapping of tool arguments to CLI commands.
  */
 export abstract class BaseCliProvider implements AIProvider {
   abstract id: string;
+
+  /**
+   * Security configuration for this provider.
+   * Subclasses can override to customize security settings.
+   */
+  protected securityConfig: SecurityConfig = {
+    enableValidation: true,
+    enableAuditLog: true,
+    enableGeminiValidation: false, // Opt-in for Gemini-compatible tools
+  };
 
   /**
    * Returns the metadata defining this tool's capabilities.
@@ -32,7 +65,12 @@ export abstract class BaseCliProvider implements AIProvider {
     const metadata = this.getMetadata();
     const cmdArgs: string[] = [];
 
-    // 1. Handle Options (flags)
+    // 1. Validate arguments if security is enabled
+    if (this.securityConfig.enableValidation) {
+      this.validateArguments(args, metadata);
+    }
+
+    // 2. Handle Options (flags)
     for (const option of metadata.options) {
       const value = args[option.name];
 
@@ -53,20 +91,10 @@ export abstract class BaseCliProvider implements AIProvider {
       }
     }
 
-    // 2. Handle Positional Argument (e.g. prompt)
+    // 3. Handle Positional Argument (e.g. prompt)
     if (metadata.argument) {
       const argValue = args[metadata.argument.name];
       if (argValue) {
-        // Handle @file syntax specific logic if necessary here,
-        // or assume the CLI handles it (or the tool wrapper handles quoting).
-        // For now, we apply basic quoting if it contains spaces or specific chars,
-        // though executeCommand/spawn usually handles distinct args safely.
-
-        // Note: The previous Qwen implementation manually checked for '@' and wrapped in quotes.
-        // We might want to abstract that "pre-processing" logic if it's common,
-        // but spawn usually handles arguments correctly without manual quoting unless shell=true.
-        // However, looking at qwenExecutor.ts, it was doing manual quoting.
-        // We will pass it as a raw string to spawn, which is safer.
         cmdArgs.push(String(argValue));
       } else if (metadata.argument.required) {
         throw new Error(`Missing required argument: ${metadata.argument.name}`);
@@ -74,6 +102,65 @@ export abstract class BaseCliProvider implements AIProvider {
     }
 
     return this.executeRaw(metadata.command, cmdArgs, onProgress);
+  }
+
+  /**
+   * Validate arguments based on security configuration.
+   * Subclasses can override for custom validation logic.
+   */
+  protected validateArguments(
+    args: Record<string, any>,
+    metadata: CliToolMetadata
+  ): void {
+    const validator = new ArgumentValidator();
+    const context = this.securityConfig.validationContext || {
+      argumentType: "generic",
+    };
+
+    // Convert args object to string array for validation
+    const argStrings = this.argsToStringArray(args, metadata);
+
+    // Use Gemini validation if enabled
+    if (this.securityConfig.enableGeminiValidation) {
+      validateWithGeminiRequirements(argStrings, context);
+    } else {
+      validator.validate(argStrings, context);
+    }
+  }
+
+  /**
+   * Convert arguments object to string array for validation.
+   */
+  protected argsToStringArray(
+    args: Record<string, any>,
+    metadata: CliToolMetadata
+  ): string[] {
+    const argStrings: string[] = [];
+
+    // Add option values
+    for (const option of metadata.options) {
+      const value = args[option.name];
+      if (value !== undefined && value !== null) {
+        if (option.type === "boolean") {
+          if (value === true) {
+            argStrings.push(option.flag);
+          }
+        } else {
+          argStrings.push(option.flag);
+          argStrings.push(String(value));
+        }
+      }
+    }
+
+    // Add argument value
+    if (metadata.argument) {
+      const value = args[metadata.argument.name];
+      if (value !== undefined && value !== null) {
+        argStrings.push(String(value));
+      }
+    }
+
+    return argStrings;
   }
 
   /**
@@ -86,6 +173,22 @@ export abstract class BaseCliProvider implements AIProvider {
     onProgress?: (output: string) => void,
     env?: Record<string, string>
   ): Promise<string> {
-    return executeCommand(command, args, onProgress, undefined, env);
+    const options: ExecuteCommandOptions = {};
+
+    if (onProgress) {
+      options.onProgress = onProgress;
+    }
+    if (env) {
+      options.env = env;
+    }
+    if (this.securityConfig.validationContext) {
+      options.validationContext = this.securityConfig.validationContext;
+    }
+    if (this.securityConfig.enableAuditLog !== undefined) {
+      options.enableAuditLog = this.securityConfig.enableAuditLog;
+    }
+    options.enableValidation = false; // Already validated in execute()
+
+    return executeCommand(command, args, options);
   }
 }
