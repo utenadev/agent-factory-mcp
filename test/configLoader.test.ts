@@ -1,52 +1,39 @@
-import { describe, it, expect } from "vitest";
-// import assert from "node:assert"; // Using expect from vitest instead
-import { writeFileSync, unlinkSync, existsSync } from "node:fs";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { writeFileSync, rmSync, existsSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { ConfigLoader } from "../src/utils/configLoader";
 
-describe("ConfigLoader", async () => {
-  let ConfigLoader;
-  const testDir = tmpdir();
+describe("ConfigLoader", () => {
+  let testDir: string;
 
-  function cleanupTestFiles() {
-    const testFiles = [
-      join(testDir, "ai-tools.json"),
-      join(testDir, ".qwencoderc.json"),
-      join(testDir, "qwencode.config.json"),
-    ];
-    for (const file of testFiles) {
-      if (existsSync(file)) {
-        unlinkSync(file);
-      }
+  beforeEach(() => {
+    // Create a unique temporary directory for each test
+    testDir = join(tmpdir(), `config-loader-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    mkdirSync(testDir, { recursive: true });
+  });
+
+  afterEach(() => {
+    // Cleanup the temporary directory
+    if (existsSync(testDir)) {
+      rmSync(testDir, { recursive: true, force: true });
     }
-  }
+  });
 
-  it("should import ConfigLoader module", async () => {
-    const module = await import("../dist/utils/configLoader.js");
-    ConfigLoader = module.ConfigLoader;
+  it("should import ConfigLoader module", () => {
     expect(ConfigLoader).toBeDefined();
   });
 
-  it("should return null when no config file exists", async () => {
-    if (!ConfigLoader) {
-      const module = await import("../dist/utils/configLoader.js");
-      ConfigLoader = module.ConfigLoader;
-    }
-
-    // Use /tmp which likely won't have our config files
-    const result = ConfigLoader.load("/tmp");
+  it("should return null when no config file exists", () => {
+    // Use the empty testDir
+    const result = ConfigLoader.load(testDir);
 
     expect(result.config).toBe(null);
     expect(result.configPath).toBe(null);
     expect(result.error).toBe(null);
   });
 
-  it("should load valid ai-tools.json", async () => {
-    if (!ConfigLoader) {
-      const module = await import("../dist/utils/configLoader.js");
-      ConfigLoader = module.ConfigLoader;
-    }
-
+  it("should load valid ai-tools.json", () => {
     const testConfig = {
       version: "1.0",
       tools: [
@@ -61,25 +48,16 @@ describe("ConfigLoader", async () => {
     const configPath = join(testDir, "ai-tools.json");
     writeFileSync(configPath, JSON.stringify(testConfig, null, 2));
 
-    try {
-      const result = ConfigLoader.load(testDir);
+    const result = ConfigLoader.load(testDir);
 
-      expect(result.config).toBeDefined();
-      expect(result.configPath).toBeDefined();
-      expect(result.error).toBe(null);
-      expect(result.config.tools.length).toBe(1);
-      expect(result.config.tools[0].command).toBe("qwen");
-    } finally {
-      cleanupTestFiles();
-    }
+    expect(result.config).toBeDefined();
+    expect(result.configPath).toBeDefined();
+    expect(result.error).toBe(null);
+    expect(result.config?.tools.length).toBe(1);
+    expect(result.config?.tools[0].command).toBe("qwen");
   });
 
-  it("should load valid .qwencoderc.json", async () => {
-    if (!ConfigLoader) {
-      const module = await import("../dist/utils/configLoader.js");
-      ConfigLoader = module.ConfigLoader;
-    }
-
+  it("should load valid .qwencoderc.json", () => {
     const testConfig = {
       version: "1.0",
       tools: [
@@ -92,23 +70,14 @@ describe("ConfigLoader", async () => {
     const configPath = join(testDir, ".qwencoderc.json");
     writeFileSync(configPath, JSON.stringify(testConfig, null, 2));
 
-    try {
-      const result = ConfigLoader.load(testDir);
+    const result = ConfigLoader.load(testDir);
 
-      expect(result.config).toBeDefined();
-      expect(result.configPath).toBeDefined();
-      expect(result.configPath).toContain(".qwencoderc.json");
-    } finally {
-      cleanupTestFiles();
-    }
+    expect(result.config).toBeDefined();
+    expect(result.configPath).toBeDefined();
+    expect(result.configPath).toContain(".qwencoderc.json");
   });
 
-  it("should prioritize ai-tools.json over other files", async () => {
-    if (!ConfigLoader) {
-      const module = await import("../dist/utils/configLoader.js");
-      ConfigLoader = module.ConfigLoader;
-    }
-
+  it("should prioritize ai-tools.json over other files", () => {
     const config1 = {
       version: "1.0",
       tools: [{ command: "qwen" }],
@@ -121,44 +90,26 @@ describe("ConfigLoader", async () => {
     writeFileSync(join(testDir, "ai-tools.json"), JSON.stringify(config1));
     writeFileSync(join(testDir, ".qwencoderc.json"), JSON.stringify(config2));
 
-    try {
-      const result = ConfigLoader.load(testDir);
+    const result = ConfigLoader.load(testDir);
 
-      expect(result.config).toBeDefined();
-      expect(result.config.tools[0].command).toBe("qwen");
-      expect(result.configPath).toContain("ai-tools.json");
-    } finally {
-      cleanupTestFiles();
-    }
+    expect(result.config).toBeDefined();
+    expect(result.config?.tools[0].command).toBe("qwen");
+    expect(result.configPath).toContain("ai-tools.json");
   });
 
-  it("should return error for invalid JSON", async () => {
-    if (!ConfigLoader) {
-      const module = await import("../dist/utils/configLoader.js");
-      ConfigLoader = module.ConfigLoader;
-    }
-
+  it("should return error for invalid JSON", () => {
     const configPath = join(testDir, "ai-tools.json");
     writeFileSync(configPath, "{invalid json}");
 
-    try {
-      const result = ConfigLoader.load(testDir);
+    const result = ConfigLoader.load(testDir);
 
-      expect(result.config).toBe(null);
-      expect(result.configPath).toBeDefined();
-      expect(result.error).toBeDefined();
-      expect(result.error).toContain("Failed to load config");
-    } finally {
-      cleanupTestFiles();
-    }
+    expect(result.config).toBe(null);
+    expect(result.configPath).toBeDefined();
+    expect(result.error).toBeDefined();
+    expect(result.error).toContain("Failed to load config");
   });
 
-  it("should validate schema and return error for missing command", async () => {
-    if (!ConfigLoader) {
-      const module = await import("../dist/utils/configLoader.js");
-      ConfigLoader = module.ConfigLoader;
-    }
-
+  it("should validate schema and return error for missing command", () => {
     const testConfig = {
       version: "1.0",
       tools: [
@@ -172,23 +123,14 @@ describe("ConfigLoader", async () => {
     const configPath = join(testDir, "ai-tools.json");
     writeFileSync(configPath, JSON.stringify(testConfig, null, 2));
 
-    try {
-      const result = ConfigLoader.load(testDir);
+    const result = ConfigLoader.load(testDir);
 
-      expect(result.config).toBe(null);
-      expect(result.error).toBeDefined();
-      expect(result.error).toContain("Invalid configuration");
-    } finally {
-      cleanupTestFiles();
-    }
+    expect(result.config).toBe(null);
+    expect(result.error).toBeDefined();
+    expect(result.error).toContain("Invalid configuration");
   });
 
-  it("should generate JSON schema", async () => {
-    if (!ConfigLoader) {
-      const module = await import("../dist/utils/configLoader.js");
-      ConfigLoader = module.ConfigLoader;
-    }
-
+  it("should generate JSON schema", () => {
     const schema = ConfigLoader.getJsonSchema();
 
     expect(schema).toBeDefined();

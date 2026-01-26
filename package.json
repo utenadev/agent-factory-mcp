@@ -8,19 +8,19 @@
     "agent-factory-mcp": "dist/index.js"
   },
   "scripts": {
-    "build": "bun x tsc",
-    "start": "bun run dist/index.js",
-    "dev": "tsc && bun run dist/index.js",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js",
     "test": "vitest run",
     "test:unit": "vitest run --exclude test/e2e-ai-flow.test.ts",
     "test:e2e": "vitest run test/e2e-ai-flow.test.ts",
     "test:ui": "vitest --ui",
     "test:watch": "vitest",
     "type-check": "tsc --noEmit",
-    "lint": "bun x @biomejs/biome lint src",
-    "lint:fix": "bun x @biomejs/biome lint src --write",
-    "format": "bun x @biomejs/biome format src --write",
-    "format:check": "bun x @biomejs/biome format src"
+    "lint": "biome lint src",
+    "lint:fix": "biome lint src --write",
+    "format": "biome format src --write",
+    "format:check": "biome format src"
   },
   "keywords": [
     "mcp",

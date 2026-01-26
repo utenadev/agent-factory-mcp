@@ -248,7 +248,8 @@ async function runDiscovery() {
   if (tools.length === 0) {
     console.log("No compatible tools found in your PATH.");
   } else {
-    console.log(`Found ${tools.length} compatible tool(s):`);
+    console.log(`Found ${tools.length} compatible tool(s):
+`);
     tools.forEach(tool => {
       console.log(`- ${tool.toolName} (command: ${tool.command})`);
       console.log(`  Description: ${tool.description}`);
@@ -281,7 +282,7 @@ runDiscovery().catch(err => {
 - CLI ツールのバージョン番号を自動検出し、設定ファイルに保存する機能を追加
 - `CliToolMetadata` と `ToolConfig` に `version` フィールドを追加
 - `getToolVersion` 関数を実装し、`--version` や `-v` フラグからバージョン番号を抽出
-- 数字のみのバージョン番号（例：Gemini CLI の `0.25.2`）にも対応する強力な正規表現を実装
+-数字のみのバージョン番号（例：Gemini CLI の `0.25.2`）にも対応する強力な正規表現を実装
 - 重いCLIツール（Gemini等）のためにタイムアウトを延長
 
 #### 3. バグ修正と環境整備
@@ -425,7 +426,7 @@ await tool.execute({ prompt: "ジョジョの何部が好き？" });
 // → "第7部「スティール・ボール・ラン」です。"
 
 await tool.execute({ sessionId: "latest", prompt: "その部で一番好きなスタンドは？" });
-// → "「タスク」です。"  ✓ 第7部を覚えている！
+// → "「タスク」です。」  ✓ 第7部を覚えている！
 ```
 
 #### 4. OpenCode 互換性の問題と対応
@@ -532,7 +533,7 @@ async function testOpencodeSession() {
   console.log("--- Q2: その部で一番好きなスタンドを教えて ---");
   const result2 = await provider.execute({ 
     sessionId: "latest",
-    prompt: "その部で一番好きなスタンドを教えて" 
+    prompt: "その部で一番好きなスタンドを教えて"
   });
   console.log("Opencode:", result2);
 }
@@ -743,5 +744,13 @@ Bun 固有のテストランナーから Vitest へ移行し、Node.js 18/20/22 
 ### コミット一覧（予定）
 - feat: migrate from bun:test to vitest for Node.js compatibility (Phase 1.5)
 
+---
 
-
+## 2026-01-27
+- **Phase 1.5 Completed**: Node.js compatibility and Vitest migration.
+    - Migrated all tests from `bun:test` to `vitest`.
+    - Updated `package.json` scripts to remove Bun dependency (replaced `bun x` with direct calls or `node`).
+    - Configured `vitest.config.ts`.
+    - Fixed flaky tests in `test/configLoader.test.ts` by using isolated temp directories.
+    - Updated GitHub Actions CI to support both Node.js (18, 20, 22) and Bun environments.
+    - Verified strict Node.js compatibility (`npm test` passes).
