@@ -426,7 +426,7 @@ await tool.execute({ prompt: "ジョジョの何部が好き？" });
 // → "第7部「スティール・ボール・ラン」です。"
 
 await tool.execute({ sessionId: "latest", prompt: "その部で一番好きなスタンドは？" });
-// → "「タスク」です。」  ✓ 第7部を覚えている！
+// → "「タスク」です。"  ✓ 第7部を覚えている！
 ```
 
 #### 4. OpenCode 互換性の問題と対応
@@ -754,3 +754,7 @@ Bun 固有のテストランナーから Vitest へ移行し、Node.js 18/20/22 
     - Fixed flaky tests in `test/configLoader.test.ts` by using isolated temp directories.
     - Updated GitHub Actions CI to support both Node.js (18, 20, 22) and Bun environments.
     - Verified strict Node.js compatibility (`npm test` passes).
+- **Phase 2 Planning & Documentation Refresh**:
+    - Updated `CONTRIBUTING.md`, `README.md`, and `docs/TESTING.md` to reflect Vitest/Node.js changes.
+    - Updated `docs/ROADMAP.md` with Phase 1.5 completion and Phase 2 (Quality Assurance & Hardening) details.
+    - Created `docs/INSTRUCTION_FOR_CLAUDE_PHASE_2.md` to guide the next development cycle.
