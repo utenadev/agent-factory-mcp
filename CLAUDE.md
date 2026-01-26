@@ -36,6 +36,44 @@ bun test test/tools.test.js
 bun test test/registry.test.js
 ```
 
+## ブランチ運用ルール
+
+**重要**: コードに変更を伴う作業を行う場合は、必ずfeatureブランチを作成してから作業してください。
+
+```bash
+# 作業を開始する前にブランチを作成
+git checkout -b feature/your-feature-name
+
+# 作業完了後にプルリクエストを作成
+git push origin feature/your-feature-name
+```
+
+### ブランチ運用の流れ
+
+1. **作業開始時**: `main` から `feature/xxx` ブランチを作成
+2. **作業中**: featureブランチでコミット
+3. **作業完了後**: プルリクエストを作成してレビューを依頼
+4. **レビュー後**: `main` にマージ
+
+### 禁止事項
+
+- ❌ `main` ブランチで直接コードを編集しない
+- ❌ 未レビューのコードを `main` にマージしない
+
+### 例
+
+```bash
+# よい手順
+git checkout -b feature/add-validation
+# ... 作業 ...
+git add .
+git commit -m "feat: add validation"
+git push origin feature/add-validation
+
+# 悪い手順（禁止）
+# main ブランチのままで編集しないこと！
+```
+
 ## アーキテクチャ
 
 ### メタデータ駆動設計
