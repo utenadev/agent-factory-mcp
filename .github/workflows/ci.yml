@@ -7,19 +7,46 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        runtime: [bun, node-18, node-20, node-22]
+        include:
+          - runtime: bun
+            setup: bun
+            install_cmd: bun install
+            test_cmd: bun run test:unit
+          - runtime: node-18
+            setup: node@18
+            install_cmd: npm install
+            test_cmd: npm run test:unit
+          - runtime: node-20
+            setup: node@20
+            install_cmd: npm install
+            test_cmd: npm run test:unit
+          - runtime: node-22
+            setup: node@22
+            install_cmd: npm install
+            test_cmd: npm run test:unit
 
     steps:
     - uses: actions/checkout@v4
 
+    - name: Setup Node.js (${{ matrix.runtime }})
+      if: ${{ startsWith(matrix.runtime, 'node') }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.setup }}
+
     - name: Setup Bun
+      if: ${{ matrix.runtime == 'bun' }}
       uses: oven-sh/setup-bun@v1
       with:
         bun-version: latest
 
     - name: Install dependencies
-      run: bun install
+      run: ${{ matrix.install_cmd }}
 
     - name: Lint
       run: bun run lint
@@ -28,4 +55,4 @@ jobs:
       run: bun run build
 
     - name: Run Unit Tests
-      run: bun run test:unit
+      run: ${{ matrix.test_cmd }}

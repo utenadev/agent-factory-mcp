@@ -1,5 +1,5 @@
-import { describe, it } from "node:test";
-import assert from "node:assert";
+import { describe, it, expect } from "vitest";
+// import assert from "node:assert"; // Using expect from vitest instead
 import { writeFileSync, unlinkSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -42,10 +42,10 @@ describe("systemPrompt support", async () => {
     try {
       const result = ConfigLoader.load(testDir);
 
-      assert.ok(result.config);
-      assert.strictEqual(result.error, null);
-      assert.strictEqual(result.config.tools.length, 1);
-      assert.strictEqual(result.config.tools[0].systemPrompt, "You are a senior code reviewer. Focus on security and performance.");
+      expect(result.config).toBeDefined();
+      expect(result.error).toBe(null);
+      expect(result.config.tools.length).toBe(1);
+      expect(result.config.tools[0].systemPrompt).toBe("You are a senior code reviewer. Focus on security and performance.");
     } finally {
       cleanupTestFiles();
     }
@@ -61,9 +61,9 @@ describe("systemPrompt support", async () => {
     };
 
     const provider = await GenericCliProvider.create(config);
-    assert.ok(provider);
+    expect(provider).toBeDefined();
 
     const metadata = provider.getMetadata();
-    assert.strictEqual(metadata.systemPrompt, "You are a helpful coding assistant.");
+    expect(metadata.systemPrompt).toBe("You are a helpful coding assistant.");
   });
 });

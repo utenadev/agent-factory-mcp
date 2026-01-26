@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect } from "vitest";
 import { discoverCompatibleTools } from "../src/utils/autoDiscovery.js";
 import { GenericCliProvider } from "../src/providers/generic-cli.provider.js";
 import type { ToolConfig } from "../src/utils/configLoader.js";

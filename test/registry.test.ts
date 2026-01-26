@@ -1,5 +1,5 @@
-import { describe, it } from 'node:test';
-import assert from 'node:assert';
+import { describe, it, expect } from 'vitest';
+// import assert from 'node:assert'; // Using expect from vitest instead
 import { fileURLToPath } from 'url';
 import path from 'path';
 
@@ -21,10 +21,10 @@ describe('Tool Registry', async () => {
     toolExists = module.toolExists;
     getToolDefinitions = module.getToolDefinitions;
     executeTool = module.executeTool;
-    assert.ok(Array.isArray(toolRegistry));
-    assert.strictEqual(typeof toolExists, 'function');
-    assert.strictEqual(typeof getToolDefinitions, 'function');
-    assert.strictEqual(typeof executeTool, 'function');
+    expect(Array.isArray(toolRegistry)).toBe(true);
+    expect(typeof toolExists).toBe('function');
+    expect(typeof getToolDefinitions).toBe('function');
+    expect(typeof executeTool).toBe('function');
   });
 
   it('should have registered tools', async () => {
@@ -32,7 +32,7 @@ describe('Tool Registry', async () => {
       const module = await import(distPath);
       toolRegistry = module.toolRegistry;
     }
-    assert.ok(toolRegistry.length > 0);
+    expect(toolRegistry.length).toBeGreaterThan(0);
   });
 
   it('should find ping tool', async () => {
@@ -40,7 +40,7 @@ describe('Tool Registry', async () => {
       const module = await import(distPath);
       toolExists = module.toolExists;
     }
-    assert.strictEqual(toolExists('Ping'), true);
+    expect(toolExists('Ping')).toBe(true);
   });
 
   it('should not find non-existent tool', async () => {
@@ -48,7 +48,7 @@ describe('Tool Registry', async () => {
       const module = await import(distPath);
       toolExists = module.toolExists;
     }
-    assert.strictEqual(toolExists('NonExistentTool'), false);
+    expect(toolExists('NonExistentTool')).toBe(false);
   });
 
   it('should get tool definitions', async () => {
@@ -57,11 +57,11 @@ describe('Tool Registry', async () => {
       getToolDefinitions = module.getToolDefinitions;
     }
     const definitions = getToolDefinitions();
-    assert.ok(Array.isArray(definitions));
-    assert.ok(definitions.length > 0);
-    assert.ok(definitions[0].name);
-    assert.ok(definitions[0].description);
-    assert.ok(definitions[0].inputSchema);
+    expect(Array.isArray(definitions)).toBeTruthy();
+    expect(definitions.length).toBeGreaterThan(0);
+    expect(definitions[0].name).toBeDefined();
+    expect(definitions[0].description).toBeDefined();
+    expect(definitions[0].inputSchema).toBeDefined();
   });
 
   it('should execute ping tool successfully', async () => {
@@ -70,7 +70,7 @@ describe('Tool Registry', async () => {
       executeTool = module.executeTool;
     }
     const result = await executeTool('Ping', { message: 'hello' });
-    assert.strictEqual(result, 'Ping response: hello');
+    expect(result).toBe('Ping response: hello');
   });
 
   it('should throw error for non-existent tool', async () => {
@@ -78,10 +78,8 @@ describe('Tool Registry', async () => {
       const module = await import(distPath);
       executeTool = module.executeTool;
     }
-    await assert.rejects(
-      async () => await executeTool('NonExistentTool', {}),
-      { message: /Unknown tool/ }
-    );
+    await expect(async () => await executeTool('NonExistentTool', {}))
+      .rejects.toThrow(/Unknown tool/);
   });
 
   it('should validate tool arguments', async () => {
@@ -90,9 +88,7 @@ describe('Tool Registry', async () => {
       executeTool = module.executeTool;
     }
     // Pass invalid argument type (message should be string, not number)
-    await assert.rejects(
-      async () => await executeTool('Ping', { message: 123 }),
-      { message: /Invalid arguments/ }
-    );
+    await expect(async () => await executeTool('Ping', { message: 123 }))
+      .rejects.toThrow(/Invalid arguments/);
   });
 });

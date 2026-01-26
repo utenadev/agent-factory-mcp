@@ -1,5 +1,5 @@
-import { describe, it } from "node:test";
-import assert from "node:assert";
+import { describe, it, expect } from "vitest";
+// import assert from "node:assert"; // Using expect from vitest instead
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "url";
 import path from "path";
@@ -13,14 +13,14 @@ describe("HelpParser", async () => {
   it("should import HelpParser module", async () => {
     const module = await import("../dist/parsers/help-parser.js");
     HelpParser = module.HelpParser;
-    assert.ok(HelpParser);
+    expect(HelpParser).toBeDefined();
   });
 
   it("should load qwen help fixture", async () => {
     const fixturePath = path.resolve(__dirname, "fixtures/qwen-help.txt");
     qwenHelpOutput = readFileSync(fixturePath, "utf-8");
-    assert.ok(qwenHelpOutput);
-    assert.ok(qwenHelpOutput.includes("Usage: qwen"));
+    expect(qwenHelpOutput).toBeDefined();
+    expect(qwenHelpOutput).toContain("Usage: qwen");
   });
 
   it("should parse qwen help output", async () => {
@@ -32,11 +32,11 @@ describe("HelpParser", async () => {
     const metadata = HelpParser.parse("qwen", qwenHelpOutput);
 
     // Verify basic structure
-    assert.strictEqual(metadata.toolName, "ask-qwen");
-    assert.strictEqual(metadata.command, "qwen");
-    assert.ok(metadata.description);
-    assert.ok(metadata.options);
-    assert.ok(Array.isArray(metadata.options));
+    expect(metadata.toolName).toBe("ask-qwen");
+    expect(metadata.command).toBe("qwen");
+    expect(metadata.description).toBeDefined();
+    expect(metadata.options).toBeDefined();
+    expect(Array.isArray(metadata.options)).toBe(true);
   });
 
   it("should parse model option correctly", async () => {
@@ -48,10 +48,10 @@ describe("HelpParser", async () => {
     const metadata = HelpParser.parse("qwen", qwenHelpOutput);
 
     const modelOption = metadata.options.find((opt) => opt.name === "model");
-    assert.ok(modelOption, "model option should be parsed");
-    assert.strictEqual(modelOption.flag, "--model");
-    assert.strictEqual(modelOption.type, "string");
-    assert.ok(modelOption.description);
+    expect(modelOption, "model option should be parsed").toBeDefined();
+    expect(modelOption.flag).toBe("--model");
+    expect(modelOption.type).toBe("string");
+    expect(modelOption.description).toBeDefined();
   });
 
   it("should parse boolean options correctly", async () => {
@@ -64,9 +64,9 @@ describe("HelpParser", async () => {
 
     // debug should be boolean with default false
     const debugOption = metadata.options.find((opt) => opt.name === "debug");
-    assert.ok(debugOption, "debug option should be parsed");
-    assert.strictEqual(debugOption.type, "boolean");
-    assert.strictEqual(debugOption.defaultValue, false);
+    expect(debugOption, "debug option should be parsed").toBeDefined();
+    expect(debugOption.type).toBe("boolean");
+    expect(debugOption.defaultValue).toBe(false);
   });
 
   it("should parse options with choices", async () => {
@@ -81,10 +81,10 @@ describe("HelpParser", async () => {
     const telemetryTarget = metadata.options.find(
       (opt) => opt.name === "telemetry-target"
     );
-    assert.ok(telemetryTarget, "telemetry-target option should be parsed");
-    assert.ok(telemetryTarget.choices);
-    assert.ok(telemetryTarget.choices.includes("local"));
-    assert.ok(telemetryTarget.choices.includes("gcp"));
+    expect(telemetryTarget, "telemetry-target option should be parsed").toBeDefined();
+    expect(telemetryTarget.choices).toBeDefined();
+    expect(telemetryTarget.choices).toContain("local");
+    expect(telemetryTarget.choices).toContain("gcp");
   });
 
   it("should parse options with default values", async () => {
@@ -99,8 +99,8 @@ describe("HelpParser", async () => {
     const inputFormat = metadata.options.find(
       (opt) => opt.name === "input-format"
     );
-    assert.ok(inputFormat, "input-format option should be parsed");
-    assert.strictEqual(inputFormat.defaultValue, "text");
+    expect(inputFormat, "input-format option should be parsed").toBeDefined();
+    expect(inputFormat.defaultValue).toBe("text");
   });
 
   it("should parse positional arguments", async () => {
@@ -111,9 +111,9 @@ describe("HelpParser", async () => {
 
     const metadata = HelpParser.parse("qwen", qwenHelpOutput);
 
-    assert.ok(metadata.argument, "should have a positional argument");
-    assert.strictEqual(metadata.argument.name, "query");
-    assert.strictEqual(metadata.argument.type, "string");
+    expect(metadata.argument, "should have a positional argument").toBeDefined();
+    expect(metadata.argument.name).toBe("query");
+    expect(metadata.argument.type).toBe("string");
   });
 
   it("should parse description correctly", async () => {
@@ -125,11 +125,11 @@ describe("HelpParser", async () => {
     const metadata = HelpParser.parse("qwen", qwenHelpOutput);
 
     // Description should contain key information
-    assert.ok(metadata.description);
-    assert.ok(
+    expect(metadata.description).toBeDefined();
+    expect(
       metadata.description.includes("Qwen Code") ||
         metadata.description.includes("interactive CLI")
-    );
+    ).toBeTruthy();
   });
 
   it("should filter out deprecated options or mark them", async () => {
@@ -142,7 +142,7 @@ describe("HelpParser", async () => {
 
     // proxy option is deprecated
     const proxyOption = metadata.options.find((opt) => opt.name === "proxy");
-    assert.ok(proxyOption, "proxy option should be parsed even if deprecated");
+    expect(proxyOption, "proxy option should be parsed even if deprecated").toBeDefined();
   });
 
   it("should handle options with both short and long flags", async () => {
@@ -155,8 +155,8 @@ describe("HelpParser", async () => {
 
     // -m, --model
     const modelOption = metadata.options.find((opt) => opt.name === "model");
-    assert.ok(modelOption, "model option should be parsed");
-    assert.strictEqual(modelOption.flag, "--model");
+    expect(modelOption, "model option should be parsed").toBeDefined();
+    expect(modelOption.flag).toBe("--model");
   });
 
   it("should handle options with only long flags", async () => {
@@ -171,7 +171,7 @@ describe("HelpParser", async () => {
     const authTypeOption = metadata.options.find(
       (opt) => opt.name === "auth-type"
     );
-    assert.ok(authTypeOption, "auth-type option should be parsed");
-    assert.strictEqual(authTypeOption.flag, "--auth-type");
+    expect(authTypeOption, "auth-type option should be parsed").toBeDefined();
+    expect(authTypeOption.flag).toBe("--auth-type");
   });
 });

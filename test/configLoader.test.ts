@@ -1,5 +1,5 @@
-import { describe, it } from "node:test";
-import assert from "node:assert";
+import { describe, it, expect } from "vitest";
+// import assert from "node:assert"; // Using expect from vitest instead
 import { writeFileSync, unlinkSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -24,7 +24,7 @@ describe("ConfigLoader", async () => {
   it("should import ConfigLoader module", async () => {
     const module = await import("../dist/utils/configLoader.js");
     ConfigLoader = module.ConfigLoader;
-    assert.ok(ConfigLoader);
+    expect(ConfigLoader).toBeDefined();
   });
 
   it("should return null when no config file exists", async () => {
@@ -36,9 +36,9 @@ describe("ConfigLoader", async () => {
     // Use /tmp which likely won't have our config files
     const result = ConfigLoader.load("/tmp");
 
-    assert.strictEqual(result.config, null);
-    assert.strictEqual(result.configPath, null);
-    assert.strictEqual(result.error, null);
+    expect(result.config).toBe(null);
+    expect(result.configPath).toBe(null);
+    expect(result.error).toBe(null);
   });
 
   it("should load valid ai-tools.json", async () => {
@@ -64,11 +64,11 @@ describe("ConfigLoader", async () => {
     try {
       const result = ConfigLoader.load(testDir);
 
-      assert.ok(result.config);
-      assert.ok(result.configPath);
-      assert.strictEqual(result.error, null);
-      assert.strictEqual(result.config.tools.length, 1);
-      assert.strictEqual(result.config.tools[0].command, "qwen");
+      expect(result.config).toBeDefined();
+      expect(result.configPath).toBeDefined();
+      expect(result.error).toBe(null);
+      expect(result.config.tools.length).toBe(1);
+      expect(result.config.tools[0].command).toBe("qwen");
     } finally {
       cleanupTestFiles();
     }
@@ -95,9 +95,9 @@ describe("ConfigLoader", async () => {
     try {
       const result = ConfigLoader.load(testDir);
 
-      assert.ok(result.config);
-      assert.ok(result.configPath);
-      assert.ok(result.configPath.includes(".qwencoderc.json"));
+      expect(result.config).toBeDefined();
+      expect(result.configPath).toBeDefined();
+      expect(result.configPath).toContain(".qwencoderc.json");
     } finally {
       cleanupTestFiles();
     }
@@ -124,9 +124,9 @@ describe("ConfigLoader", async () => {
     try {
       const result = ConfigLoader.load(testDir);
 
-      assert.ok(result.config);
-      assert.strictEqual(result.config.tools[0].command, "qwen");
-      assert.ok(result.configPath.includes("ai-tools.json"));
+      expect(result.config).toBeDefined();
+      expect(result.config.tools[0].command).toBe("qwen");
+      expect(result.configPath).toContain("ai-tools.json");
     } finally {
       cleanupTestFiles();
     }
@@ -144,10 +144,10 @@ describe("ConfigLoader", async () => {
     try {
       const result = ConfigLoader.load(testDir);
 
-      assert.strictEqual(result.config, null);
-      assert.ok(result.configPath);
-      assert.ok(result.error);
-      assert.ok(result.error.includes("Failed to load config"));
+      expect(result.config).toBe(null);
+      expect(result.configPath).toBeDefined();
+      expect(result.error).toBeDefined();
+      expect(result.error).toContain("Failed to load config");
     } finally {
       cleanupTestFiles();
     }
@@ -175,9 +175,9 @@ describe("ConfigLoader", async () => {
     try {
       const result = ConfigLoader.load(testDir);
 
-      assert.strictEqual(result.config, null);
-      assert.ok(result.error);
-      assert.ok(result.error.includes("Invalid configuration"));
+      expect(result.config).toBe(null);
+      expect(result.error).toBeDefined();
+      expect(result.error).toContain("Invalid configuration");
     } finally {
       cleanupTestFiles();
     }
@@ -191,8 +191,8 @@ describe("ConfigLoader", async () => {
 
     const schema = ConfigLoader.getJsonSchema();
 
-    assert.ok(schema);
-    assert.ok(schema.properties);
-    assert.ok(schema.properties.tools);
+    expect(schema).toBeDefined();
+    expect(schema.properties).toBeDefined();
+    expect(schema.properties.tools).toBeDefined();
   });
 });

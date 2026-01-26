@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from "bun:test";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { SecurityError, SecurityErrors } from "../../src/utils/errors.js";
 import {
   ArgumentValidator,

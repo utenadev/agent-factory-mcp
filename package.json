@@ -11,9 +11,11 @@
     "build": "bun x tsc",
     "start": "bun run dist/index.js",
     "dev": "tsc && bun run dist/index.js",
-    "test": "bun test test/**/*.test.{js,ts}",
-    "test:unit": "bun test test/autoDiscovery.test.ts test/configLoader.test.js test/help-parser.test.js test/registry.test.js test/subcommands.test.js test/system-prompt.test.js test/tools.test.js",
-    "test:e2e": "bun test test/e2e-ai-flow.test.ts",
+    "test": "vitest run",
+    "test:unit": "vitest run --exclude test/e2e-ai-flow.test.ts",
+    "test:e2e": "vitest run test/e2e-ai-flow.test.ts",
+    "test:ui": "vitest --ui",
+    "test:watch": "vitest",
     "type-check": "tsc --noEmit",
     "lint": "bun x @biomejs/biome lint src",
     "lint:fix": "bun x @biomejs/biome lint src --write",
@@ -33,7 +35,7 @@
   "author": "utenadev",
   "license": "MIT",
   "engines": {
-    "bun": ">=1.0.0"
+    "node": ">=18.0.0"
   },
   "files": ["dist/", "README.md", "LICENSE"],
   "dependencies": {
@@ -45,10 +47,10 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
-    "@types/bun": "^1.3.6",
     "@types/inquirer": "^9.0.0",
     "@types/node": "^20.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^2.1.8"
   },
   "publishConfig": {
     "access": "public"

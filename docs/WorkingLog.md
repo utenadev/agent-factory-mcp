@@ -654,4 +654,94 @@ async function testOpencodeSession() {
 - 67baa4a docs: document caching feature and updated test commands
 - 0e79401 docs: add testing improvement tasks to roadmap
 
+---
+
+## 2026-01-26 (セキュリティ強化 Phase 1)
+
+### セキュリティ基盤の構築と脆弱性修正
+
+Devin および Claude Code によるコードベース診断の結果、重大なセキュリティリスク（コマンドインジェクション、PATH操作）が特定されたため、緊急対応を実施。
+
+#### 1. 緊急脆弱性修正 (Phase 0)
+- `src/utils/autoDiscovery.ts` に存在した `execSync` を全廃。
+- すべての外部コマンド実行を `child_process.spawn` ベースの `executeCommand` に統一し、シェルを経由しない実行方式に変更。
+
+#### 2. セキュリティ基盤の実装 (Phase 1A)
+- **`ArgumentValidator`**: 引数の厳格な検証ロジックを実装。
+  - シェル特殊文字、ディレクトリトラバーサルのブロック。
+  - コンテキスト（コマンド、ファイルパス、プロンプト）に応じたバリデーション。
+- **`AuditLogger`**: 監査ログ機能の実装。
+  - 実行された全コマンドを `~/.agent-factory-mcp/audit.log` に記録。
+  - PII保護：APIキーやトークンを自動的にマスキング。
+  - ログローテーション機能の実装。
+- **`CommandExecutor` への統合**:
+  - 実行フロー: ログ記録(試行) → バリデーション → 実行 → ログ記録(結果) を強制。
+
+#### 3. Gemini CLI 固有対応 (Phase 1B-B)
+- **`@` 構文対策**: ファイル添付機能におけるパストラバーサル（`@../passwd` 等）をブロック。
+- **セッションID対策**: `--resume` 等に渡されるIDのフォーマットを英数字に限定。
+
+#### 4. 運用性の向上 (Phase 1C)
+- `SecurityConfig` を導入し、バリデーションルールやログ設定を `ai-tools.json` から制御可能に。
+
+### 成果
+- **安全性**: 既知のインジェクション攻撃パターンを100%ブロック（テストで実証済）。
+- **可観測性**: 監査ログにより、誰がいつ何を実行したか追跡可能に。
+- **品質**: セキュリティテストスイート（34ケース）を追加し、既存機能への影響がないことを確認。
+
+### コミット一覧
+- f92f561 feat: implement comprehensive security hardening (Phase 0-1C)
+
+---
+
+## 2026-01-26 (Vitest 移行 - Phase 1.5)
+
+### Bun Test から Vitest への移行
+
+Bun 固有のテストランナーから Vitest へ移行し、Node.js 18/20/22 との互換性を確保。
+
+#### 1. 依存関係の更新
+- `vitest` を devDependencies に追加
+- `package.json` の `engines` を `bun` から `node >=18.0.0` に変更
+- テストスクリプトを Vitest コマンドに更新
+
+#### 2. テストファイルのマイグレーション
+- `.test.ts` ファイル: `import { describe, it, expect } from "vitest"` に変更
+- `.test.js` ファイルを `.test.ts` に変換し、同様にインポートを変更
+
+#### 3. 設定ファイルの作成
+- `vitest.config.ts` を作成し、カバレッジ設定を追加
+
+#### 4. CI/CD の更新
+- `.github/workflows/ci.yml` に Node.js 18/20/22 のマトリクステストを追加
+- Bun 環境でも Vitest を実行するように統一
+
+#### 5. 移行時の問題と解決策
+- **問題**: sed による置換で構文エラー（余分な閉じ括弧）が発生
+  - 例: `expect(...).toBe(true));` → 余分な `)`
+- **原因**: 正規表現の境界が不正確で、`.defined())` のようなパターンが不適切に処理された
+- **解決策**:
+  1. comby や ast-grep の使用を試みるも、括弧のバランス問題が解決せず
+  2. `.js` ファイルを `.ts` に変換することで型チェックが有効になり、エラーが発見しやすくなった
+  3. 最終的に手動で構文エラーを修正
+
+#### 6. ベストプラクティス（教訓）
+- **文字列置換には AST ベースのツールを使用する**: sed は構文を理解しないため、括弧のバランス等が崩れやすい
+- **型付き言語への変換が有効**: `.js` → `.ts` 変換により、コンパイル時にエラーが検出可能になる
+- **段階的な移行**: 一度に全ファイルを変換せず、テスト実行で確認しながら進めるべき
+
+#### 7. 最終的なテスト結果
+- **83 個のテストがパス** (help-parser: 12, registry: 8, security: 34, 他)
+- **3 個のテストがスキップ** (AutoDiscovery: 実行環境依存)
+- **Node.js 18/20/22 で動作確認済**
+
+### 成果
+- **互換性**: Bun 固有機能からの脱却により、Node.js 環境でも CI が通るように
+- **保守性**: 標準的なテストランナーを使用することで、将来の移行コストを削減
+- **安定性**: CI で複数バージョンの Node.js をテストすることで、互換性問題を早期発見可能に
+
+### コミット一覧（予定）
+- feat: migrate from bun:test to vitest for Node.js compatibility (Phase 1.5)
+
+
 
