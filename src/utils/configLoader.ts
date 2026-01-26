@@ -44,11 +44,57 @@ const ToolConfigSchema = z.object({
 });
 
 /**
+ * Zod schema for security configuration.
+ */
+const SecurityConfigSchema = z.object({
+  /** Whether to enable argument validation */
+  enableValidation: z.boolean().optional().default(true),
+
+  /** Whether to enable audit logging */
+  enableAuditLog: z.boolean().optional().default(true),
+
+  /** Whether to enable Gemini-specific validations */
+  enableGeminiValidation: z.boolean().optional().default(false),
+
+  /** Maximum argument length */
+  maxArgumentLength: z.number().optional().default(10000),
+
+  /** Maximum prompt log length */
+  maxPromptLogLength: z.number().optional().default(200),
+
+  /** Maximum log file size in bytes before rotation */
+  maxLogSize: z.number().optional().default(10 * 1024 * 1024), // 10MB
+
+  /** Maximum number of rotated logs to keep */
+  maxRotatedLogs: z.number().optional().default(5),
+
+  /** Whether to enable log rotation */
+  enableRotation: z.boolean().optional().default(true),
+
+  /** Allowed commands (whitelist) */
+  allowedCommands: z.array(z.string()).optional().default([]),
+
+  /** Dangerous flags to block */
+  dangerousFlags: z.array(z.string()).optional().default([]),
+
+  /** Shell special characters to block */
+  shellSpecialChars: z.array(z.string()).optional().default([
+    ";", "|", "&", "$", "`", "(", ")", "{", "}", "<", ">"
+  ]),
+
+  /** Path traversal patterns to block */
+  pathTraversalPatterns: z.array(z.string()).optional().default([
+    "../", "..\\"
+  ]),
+});
+
+/**
  * Zod schema for validating ToolsConfig.
  */
 const ToolsConfigSchema = z.object({
   version: z.string().default(DEFAULT_VERSION),
   tools: z.array(ToolConfigSchema),
+  security: SecurityConfigSchema.optional(),
 });
 
 // ============================================================================
@@ -87,6 +133,7 @@ type OperationResult = { success: boolean; error: string | null };
 // Re-export types inferred from Zod schema for consistency
 export type ToolConfig = z.infer<typeof ToolConfigSchema>;
 export type ToolsConfig = z.infer<typeof ToolsConfigSchema>;
+export type SecurityConfig = z.infer<typeof SecurityConfigSchema>;
 
 // ============================================================================
 // ConfigLoader Class
@@ -340,6 +387,28 @@ export class ConfigLoader {
         error: `Failed to auto-discover tools: ${error}`,
       };
     }
+  }
+
+  // ========================================================================
+  // Security Configuration
+  // ========================================================================
+
+  /**
+   * Get the security configuration from the loaded config.
+   * Returns default values if not specified.
+   *
+   * @param searchDir - Directory to search from (default: process.cwd())
+   * @returns Security configuration
+   */
+  static getSecurityConfig(searchDir: string = process.cwd()): SecurityConfig {
+    const result = this.load(searchDir);
+
+    if (!result.config) {
+      // Return default security config
+      return SecurityConfigSchema.parse({});
+    }
+
+    return SecurityConfigSchema.parse(result.config.security || {});
   }
 
   // ========================================================================

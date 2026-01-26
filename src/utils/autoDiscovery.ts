@@ -1,4 +1,4 @@
-import { execSync } from "child_process";
+import { executeCommand } from "./commandExecutor.js";
 import { HelpParser } from "../parsers/help-parser.js";
 import type { CliToolMetadata } from "../types/cli-metadata.js";
 import { Logger } from "./logger.js";
@@ -16,15 +16,15 @@ const AI_TOOL_WHITELIST = new Set([
  * @param command The command name to look for.
  * @returns The full path to the executable if found, null otherwise.
  */
-export function findExecutable(command: string): string | null {
+export async function findExecutable(command: string): Promise<string | null> {
   try {
     const checkCommand = process.platform === "win32" ? "where" : "which";
-    const result = execSync(`${checkCommand} "${command}" 2> /dev/null || echo ""`).toString().trim();
-    
+    const result = await executeCommand(checkCommand, [command], undefined, 5000);
+
     if (!result) return null;
 
     // "where" command on Windows might return multiple paths, take the first one
-    const paths = result.split(/\r?\n/);
+    const paths = result.trim().split(/\r?\n/);
     return paths[0] || null;
   } catch (error) {
     return null;
@@ -36,25 +36,32 @@ export function findExecutable(command: string): string | null {
  * @param executablePath Path to the executable.
  * @returns Version string if found, undefined otherwise.
  */
-export function getToolVersion(executablePath: string): string | undefined {
-  try {
-    const versionOutput = execSync(`"${executablePath}" --version 2> /dev/null || "${executablePath}" -v 2> /dev/null || echo ""`, {
-      timeout: 5000,
-    }).toString().trim();
-    
-    if (!versionOutput) return undefined;
+export async function getToolVersion(executablePath: string): Promise<string | undefined> {
+  let versionOutput: string;
 
-    // Simple regex to find something that looks like a version number (e.g., 1.2.3, v0.1.0, 0.25.2)
-    const versionMatch = versionOutput.match(/(v?\d+\.\d+(\.\d+)?(-[\w\.]+)*)/i);
-    const version = versionMatch ? versionMatch[0] : versionOutput.split('\n')[0]?.trim();
-    
-    if (version) {
-      Logger.debug(`Detected version for ${executablePath}: ${version}`);
+  // Try --version first, then -v as fallback
+  try {
+    versionOutput = await executeCommand(executablePath, ["--version"], undefined, 5000);
+  } catch {
+    try {
+      versionOutput = await executeCommand(executablePath, ["-v"], undefined, 5000);
+    } catch {
+      return undefined;
     }
-    return version || undefined;
-  } catch (error) {
-    return undefined;
   }
+
+  versionOutput = versionOutput.trim();
+
+  if (!versionOutput) return undefined;
+
+  // Simple regex to find something that looks like a version number (e.g., 1.2.3, v0.1.0, 0.25.2)
+  const versionMatch = versionOutput.match(/(v?\d+\.\d+(\.\d+)?(-[\w\.]+)*)/i);
+  const version = versionMatch ? versionMatch[0] : versionOutput.split('\n')[0]?.trim();
+
+  if (version) {
+    Logger.debug(`Detected version for ${executablePath}: ${version}`);
+  }
+  return version || undefined;
 }
 
 /**
@@ -67,7 +74,7 @@ export async function checkToolCompatibility(
 ): Promise<CliToolMetadata | null> {
   try {
     // Extract command name from path (e.g., /usr/bin/opencode -> opencode)
-    const commandName = process.platform === "win32" 
+    const commandName = process.platform === "win32"
       ? executablePath.split("\\").pop()?.split(".")[0] || executablePath
       : executablePath.split("/").pop() || executablePath;
 
@@ -76,9 +83,7 @@ export async function checkToolCompatibility(
         return null;
     }
 
-    const helpOutput = execSync(`"${executablePath}" --help 2> /dev/null || echo ""`, {
-      timeout: 10000,
-    }).toString();
+    const helpOutput = await executeCommand(executablePath, ["--help"], undefined, 10000);
     const metadata = HelpParser.parse(commandName, helpOutput);
 
     if (!metadata || !metadata.toolName || !metadata.command) {
@@ -86,7 +91,7 @@ export async function checkToolCompatibility(
     }
 
     // Attempt to get version
-    metadata.version = getToolVersion(executablePath);
+    metadata.version = await getToolVersion(executablePath);
 
     return metadata;
   } catch (error) {
@@ -121,8 +126,8 @@ export async function discoverCompatibleTools(forceRefresh = false): Promise<Cli
   Logger.debug(`Starting discovery for tools: ${Array.from(AI_TOOL_WHITELIST).join(", ")}`);
 
   for (const toolName of AI_TOOL_WHITELIST) {
-    const executablePath = findExecutable(toolName);
-    
+    const executablePath = await findExecutable(toolName);
+
     if (executablePath) {
       Logger.debug(`Found executable for ${toolName}: ${executablePath}`);
       const metadata = await checkToolCompatibility(executablePath);
