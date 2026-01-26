@@ -25,8 +25,8 @@ This project adheres to a code of conduct that all contributors are expected to 
 
 ### Prerequisites
 
-- **Bun** >= 1.0.0
-- **Node.js** >= 20.0.0 (for some tools)
+- **Bun** >= 1.0.0 (recommended for development speed)
+- **Node.js** >= 18.0.0 (required for compatibility)
 - **Git**
 - **go-task** (optional, for task runner)
 
@@ -38,13 +38,15 @@ git clone https://github.com/utenadev/agent-factory-mcp.git
 cd agent-factory-mcp
 
 # Install dependencies
+npm install
+# or
 bun install
 
 # Run build
-bun run build
+npm run build
 
 # Run tests
-bun test
+npm test
 ```
 
 ### Using go-task (Optional)
@@ -147,16 +149,16 @@ We use **Biome** for linting and formatting:
 
 ```bash
 # Check linting
-bun run lint
+npm run lint
 
 # Auto-fix linting issues
-bun run lint:fix
+npm run lint:fix
 
 # Format code
-bun run format
+npm run format
 
 # Check formatting
-bun run format:check
+npm run format:check
 ```
 
 #### Documentation
@@ -179,13 +181,15 @@ bun run format:check
 
 ```bash
 # Run all tests
+npm test
+# or
 bun test
 
 # Run specific test file
-bun test test/help-parser.test.js
+npx vitest run test/help-parser.test.ts
 
-# Run with coverage (if configured)
-bun test --coverage
+# Run with coverage
+npx vitest run --coverage
 ```
 
 ### Test Structure
@@ -194,30 +198,29 @@ Tests are located in the `test/` directory:
 
 ```
 test/
-├── help-parser.test.js     # HelpParser tests
-├── configLoader.test.js     # ConfigLoader tests
-├── registry.test.js         # Tool registry tests
-├── subcommands.test.js      # Subcommand parsing tests
-├── system-prompt.test.js    # SystemPrompt feature tests
-└── tools.test.js            # General tool tests
+├── help-parser.test.ts      # HelpParser tests
+├── configLoader.test.ts     # ConfigLoader tests
+├── registry.test.ts         # Tool registry tests
+├── subcommands.test.ts      # Subcommand parsing tests
+├── system-prompt.test.ts    # SystemPrompt feature tests
+└── tools.test.ts            # General tool tests
 ```
 
 ### Writing Tests
 
 ```typescript
-import { describe, it } from "node:test";
-import assert from "node:assert";
+import { describe, it, expect } from "vitest";
 
-describe("FeatureName", async () => {
-  it("should do something specific", async () => {
+describe("FeatureName", () => {
+  it("should do something specific", () => {
     // Arrange
     const input = { /* test data */ };
 
     // Act
-    const result = await functionToTest(input);
+    const result = functionToTest(input);
 
     // Assert
-    assert.strictEqual(result.expected, "actual value");
+    expect(result.expected).toBe("actual value");
   });
 });
 ```

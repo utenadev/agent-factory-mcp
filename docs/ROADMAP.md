@@ -69,6 +69,31 @@ The server now recognizes and registers CLI tools (like Qwen, Ollama, Gemini, et
 - Command-line argument parsing for quick tool registration
 - `systemPrompt` field in configuration schema
 
+### ✅ Phase 1.5: Node.js Compatibility & Test Migration
+**Status:** Complete
+**Focus:** Ensure compatibility with Node.js ecosystem and modernize testing stack.
+
+- [x] Migrate test runner from `bun:test` to `vitest`
+- [x] Remove Bun dependencies from runtime scripts
+- [x] Implement hybrid CI/CD (Node.js 18/20/22 + Bun)
+- [x] Fix flaky tests with isolated environments
+
+**Deliverables:**
+- `vitest.config.ts`
+- Updated `package.json` scripts
+- Robust `test/configLoader.test.ts`
+- CI workflow `.github/workflows/ci.yml`
+
+## Phase 2: Quality Assurance & Core Hardening (Upcoming)
+**Status:** Planned
+**Focus:** Deepen test coverage, improve error handling, and enhance observability.
+
+- [ ] **Unit Tests for `BaseCliProvider`**: Improve coverage for the core base class.
+- [ ] **Enhance `ConfigLoader` Error Handling**: Tests for invalid JSON, missing schemas, permission issues.
+- [ ] **Improve `Logger` Coverage**: Verify log level filtering and output formatting.
+- [ ] **Automated Coverage Reporting**: Integrate coverage reporting into CI.
+- [ ] **Interactive Init**: `agent-factory-mcp init` command for easier setup.
+
 ## Implementation Summary
 
 | Phase | Status | Tests | Key Files |
@@ -77,8 +102,9 @@ The server now recognizes and registers CLI tools (like Qwen, Ollama, Gemini, et
 | Phase 2 | ✅ | 8 | `src/providers/generic-cli.provider.ts`, `src/utils/configLoader.ts` |
 | Phase 3 | ✅ | 6 | Subcommand support in `HelpParser` |
 | Phase 4 | ✅ | 14 | `register_cli_tool`, CLI args, systemPrompt |
+| Phase 1.5| ✅ | 85 | Vitest Migration, CI/CD, Node.js Compatibility |
 
-**Total:** 40 tests passing
+**Total:** 85+ tests passing
 
 ## Post-Completion Enhancements
 
@@ -103,13 +129,6 @@ After completing the core roadmap, the following features were added:
    - Refreshed documentation with Mermaid diagrams
 
 ## Future Enhancements (Ideas)
-
-### Testing & Quality Improvement (High Priority)
-Following the MistralVibe test report analysis, the following areas need attention:
-- [ ] **Implement Unit Tests for `BaseCliProvider`**: Improve coverage for the core base class (currently 0%).
-- [ ] **Enhance `ConfigLoader` Error Handling Tests**: Add tests for invalid JSON, missing schemas, and permission issues.
-- [ ] **Improve `Logger` Coverage**: Verify log level filtering and output formatting.
-- [ ] **Automated Coverage Reporting**: Integrate coverage reporting into the CI pipeline.
 
 ### Other Ideas
 - **Tool Marketplace**: Share and discover tool configurations

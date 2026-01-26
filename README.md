@@ -471,30 +471,27 @@ task check
 task format
 ```
 
-Alternatively, you can use standard `bun` commands:
+Alternatively, you can use standard `npm` or `bun` commands:
 
 ```bash
 # Install dependencies
-bun install
+npm install
 
 # Build
-bun run build
+npm run build
 
 # Run tests
-bun run test:unit   # Run unit tests (fast, CI-friendly)
-bun run test:e2e    # Run E2E tests (requires actual AI tools installed)
+npm run test:unit   # Run unit tests (fast, CI-friendly)
+npm run test:e2e    # Run E2E tests (requires actual AI tools installed)
 
 # Type check
-bun run type-check
+npm run type-check
 
 # Lint
-bun run lint
+npm run lint
 
 # Format
-bun run format
-
-# Run auto-discovery manually
-bun run auto-discover
+npm run format
 ```
 
 ## Project Structure
