@@ -28,6 +28,23 @@ import { ConfigLoader } from "./utils/configLoader.js";
 import type { ToolConfig } from "./utils/configLoader.js";
 import { Logger } from "./utils/logger.js";
 import { ProgressManager } from "./utils/progressManager.js";
+import { runSetupWizard } from "./utils/setupWizard.js";
+
+// ============================================================================
+// Global Error Handlers
+// ============================================================================
+
+// Handle unhandled promise rejections
+process.on("unhandledRejection", (reason, promise) => {
+  Logger.error("Unhandled Rejection at:", promise);
+  Logger.error("Reason:", reason);
+});
+
+// Handle uncaught exceptions
+process.on("uncaughtException", (error) => {
+  Logger.error("Uncaught Exception:", error);
+  process.exit(1);
+});
 
 // ============================================================================
 // Server Configuration
@@ -301,9 +318,30 @@ async function registerToolsFromConfig(tools: ToolConfig[]): Promise<void> {
 // ============================================================================
 
 /**
+ * Run the interactive setup wizard.
+ * Handles the 'init' command to create ai-tools.json configuration.
+ */
+async function runInitCommand(): Promise<void> {
+  try {
+    await runSetupWizard();
+    process.exit(0);
+  } catch (error) {
+    Logger.error("Setup wizard failed:", error);
+    process.exit(1);
+  }
+}
+
+/**
  * Main entry point - initialize and start the MCP server.
  */
 async function main(): Promise<void> {
+  // Check for 'init' command
+  const command = process.argv[2];
+  if (command === "init") {
+    await runInitCommand();
+    return;
+  }
+
   Logger.debug("init qwencode-mcp-server");
 
   await initializeFromConfig();
