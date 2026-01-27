@@ -747,62 +747,25 @@ Bun 固有のテストランナーから Vitest へ移行し、Node.js 18/20/22 
 ---
 
 ## 2026-01-27
-- **Phase 1.5 Completed**: Node.js compatibility and Vitest migration.
-    - Migrated all tests from `bun:test` to `vitest`.
-    - Updated `package.json` scripts to remove Bun dependency (replaced `bun x` with direct calls or `node`).
-    - Configured `vitest.config.ts`.
-    - Fixed flaky tests in `test/configLoader.test.ts` by using isolated temp directories.
-    - Updated GitHub Actions CI to support both Node.js (18, 20, 22) and Bun environments.
-    - Verified strict Node.js compatibility (`npm test` passes).
-- **Phase 2 Planning & Documentation Refresh**:
-    - Updated `CONTRIBUTING.md`, `README.md`, and `docs/TESTING.md` to reflect Vitest/Node.js changes.
-    - Updated `docs/ROADMAP.md` with Phase 1.5 completion and Phase 2 (Quality Assurance & Hardening) details.
-    - Created `docs/INSTRUCTION_FOR_CLAUDE_PHASE_2.md` to guide the next development cycle.
 
-### Phase 2: Test Coverage Improvement (Completion)
+### Phase 1.5 完了：Node.js 互換性と Vitest 移行
+- テストランナーを `bun:test` から `vitest` へ完全移行。
+- `package.json` のスクリプトから Bun 依存を排除（`bun x` を `npx` 相当または `node` に置換）。
+- `vitest.config.ts` を構成。
+- 一意の一時ディレクトリを使用することで `test/configLoader.test.ts` の不安定なテストを修正。
+- GitHub Actions CI を更新し、Node.js (18, 20, 22) と Bun両環境でのテストに対応。
+- 厳格な Node.js 互換性を検証（`npm test` が通過することを確認）。
 
-#### Task 01-05: カバレッジ調査と主要コンポーネントのテスト実装
-- **Task 01**: 全体カバレッジ調査 (28.59% statements)
-- **Task 02**: BaseCliProvider テスト (98.01% coverage)
-- **Task 03**: GenericCliProvider と ConfigLoader テスト (86.89%, 53.15%)
-- **Task 04**: DynamicToolFactory と Registry テスト (100%, 98.13%)
-- **Task 05**: index.ts と help-parser.ts カバレッジ向上 (34.73%, 10.89%)
+### Phase 2 実装：品質保証と堅牢化
+- `BaseCliProvider`, `GenericCliProvider`, `DynamicToolFactory`, `Registry` に対する網羅的なユニットテストを実装。
+- コアロジックのカバレッジが 90%〜100% に到達。
+- `ConfigLoader` に不正な JSON やスキーマ違反に関するエラーハンドリングテストを追加。
+- `inquirer` を使用した対話型セットアップウィザード `init` コマンドを実装。
+- `index.ts` にグローバルエラーハンドラーを追加。
+- 全てのテストインポートを `dist/` から `src/` に切り替え、テストスイートをモダン化。
+- `package-lock.json` を追加し、CI の不安定さを解消（Issue #3）。
 
-#### Task 06: Init コマンドの実装
-- **`src/utils/setupWizard.ts`** を新規作成 (247行)
-  - 対話型セットアップウィザードの実装
-  - 5ステップフロー: 検出 → 選択 → 詳細設定 → プレビュー → 保存
-  - `AutoDiscovery.discoverCompatibleTools()` の再利用
-  - `inquirer` による対話型インターフェース
-  - 既存設定ファイルの上書き確認
-
-- **`src/index.ts`** を拡張
-  - `init` コマンド処理: `process.argv[2] === "init"` でセットアップモードへ
-  - グローバルエラーハンドラー追加
-    - `unhandledRejection` イベント
-    - `uncaughtException` イベント
-
-- **`test/utils/setupWizard.test.ts`** を新規作成 (460行, 17 tests)
-  - 基本機能、ツール検出、ツール選択、詳細設定
-  - 設定の保存、エラーハンドリング、上書き確認
-  - inquirer モック化による完全な単体テスト
-
-#### カバレッジ結果 (Task 06)
-| ファイル | Functions | Lines |
-|----------|-----------|-------|
-| setupWizard.ts | **90.48%** | **97.58%** |
-| index.ts | 45.00% | 35.47% |
-
-#### 完了条件の確認
-- ✅ `npx agent-factory-mcp init` でウィザードが起動する
-- ✅ 選択した内容に基づいて正しい `ai-tools.json` が生成される
-- ✅ 既存の設定ファイルがある場合は上書き確認を行う
-
-#### 成果
-- **Phase 2 完了**: すべてのテストカバレッジ向上タスクが完了
-- **高いテスト品質**: setupWizard.ts に対して 97.58% カバレッジを達成
-- **コードの再利用性**: 既存の AutoDiscovery ロジックを統合
-- **堅牢性**: グローバルエラーハンドラーによるプロダクション対応
-
-#### コミット一覧（予定）
-- feat: implement interactive setup wizard with init command (Phase 2 Task 06)
+### PCP プロトコルと開発環境の強化
+- tmux とファイルシステムを介したエージェント連携プロトコル「PCP (Pane Communication Protocol)」を定義。
+- エージェント間通知用の `scripts/postman.sh` を作成。
+- tmux 開発環境を自動構築する `scripts/shogun.sh` を作成（一撃で Gemini/Claude の協働環境を展開）。
