@@ -19,17 +19,17 @@ jobs:
             runner: bun
             test_cmd: bun run test:unit
           - runtime: node-18
-            setup: node@18
+            setup: 18
             install_cmd: npm install
             runner: npm
             test_cmd: npm run test:unit
           - runtime: node-20
-            setup: node@20
+            setup: 20
             install_cmd: npm install
             runner: npm
             test_cmd: npm run test:unit
           - runtime: node-22
-            setup: node@22
+            setup: 22
             install_cmd: npm install
             runner: npm
             test_cmd: npm run test:unit
