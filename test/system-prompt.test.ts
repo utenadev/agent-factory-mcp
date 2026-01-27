@@ -1,27 +1,16 @@
 import { describe, it, expect } from "vitest";
-// import assert from "node:assert"; // Using expect from vitest instead
-import { writeFileSync, unlinkSync, existsSync } from "node:fs";
+import { writeFileSync, rmSync, existsSync, mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { ConfigLoader } from "../src/utils/configLoader.js";
+import { GenericCliProvider } from "../src/providers/generic-cli.provider.js";
 
-describe("systemPrompt support", async () => {
-  let ConfigLoader;
-  const testDir = tmpdir();
+describe("systemPrompt support", () => {
+  let testDir: string;
 
-  function cleanupTestFiles() {
-    const testFiles = [
-      join(testDir, "ai-tools.json"),
-    ];
-    for (const file of testFiles) {
-      if (existsSync(file)) {
-        unlinkSync(file);
-      }
-    }
-  }
-
-  it("should load config with systemPrompt", async () => {
-    const module = await import("../dist/utils/configLoader.js");
-    ConfigLoader = module.ConfigLoader;
+  it("should load config with systemPrompt", () => {
+    testDir = join(tmpdir(), `system-prompt-test-${Date.now()}`);
+    mkdirSync(testDir, { recursive: true });
 
     const testConfig = {
       version: "1.0",
@@ -44,16 +33,16 @@ describe("systemPrompt support", async () => {
 
       expect(result.config).toBeDefined();
       expect(result.error).toBe(null);
-      expect(result.config.tools.length).toBe(1);
-      expect(result.config.tools[0].systemPrompt).toBe("You are a senior code reviewer. Focus on security and performance.");
+      expect(result.config?.tools.length).toBe(1);
+      expect(result.config?.tools[0].systemPrompt).toBe("You are a senior code reviewer. Focus on security and performance.");
     } finally {
-      cleanupTestFiles();
+      if (existsSync(testDir)) {
+        rmSync(testDir, { recursive: true, force: true });
+      }
     }
   });
 
   it("should apply systemPrompt to metadata", async () => {
-    const { GenericCliProvider } = await import("../dist/providers/generic-cli.provider.js");
-
     const config = {
       command: "qwen",
       enabled: true,
