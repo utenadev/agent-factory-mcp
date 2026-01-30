@@ -9,11 +9,11 @@
 **目的**: Logger のカバレッジを向上させ、ログレベルフィルタリングと出力フォーマットを検証
 
 **サブタスク**:
-- [ ] 1.1 Logger 基本機能のテスト（info, warn, error, debug）
-- [ ] 1.2 NO_COLOR 環境変数対応のテスト
-- [ ] 1.3 TERM=dumb 環境変数対応のテスト
-- [ ] 1.4 ログレベルフィルタリングのテスト
-- [ ] 1.5 出力フォーマット検証のテスト
+- [x] 1.1 Logger 基本機能のテスト（info, warn, error, debug）
+- [x] 1.2 NO_COLOR 環境変数対応のテスト
+- [x] 1.3 TERM=dumb 環境変数対応のテスト
+- [x] 1.4 ログレベルフィルタリングのテスト
+- [x] 1.5 出力フォーマット検証のテスト
 
 **成果物**: `test/utils/logger.test.ts`
 
@@ -23,10 +23,10 @@
 **目的**: CI/CD でカバレッジレポートを自動生成し、成果を可視化
 
 **サブタスク**:
-- [ ] 2.1 vitest.config.ts のカバレッジ設定確認・更新
-- [ ] 2.2 GitHub Actions ワークフローにカバレッジステップ追加
-- [ ] 2.3 カバレッジレポートの成果物（artifact）保存設定
-- [ ] 2.4 カバレッジバッジ生成（オプション）
+- [x] 2.1 vitest.config.ts のカバレッジ設定確認・更新
+- [x] 2.2 GitHub Actions ワークフローにカバレッジステップ追加
+- [x] 2.3 カバレッジレポートの成果物（artifact）保存設定
+- [ ] 2.4 カバレッジバッジ生成（オプション） ※残タスク
 
 **成果物**: 更新された `.github/workflows/ci.yml`
 
@@ -36,11 +36,11 @@
 **目的**: MCP プログレス通知機能のテストカバレッジ向上
 
 **サブタスク**:
-- [ ] 3.1 ProgressManager.startUpdates のテスト
-- [ ] 3.2 ProgressManager.updateOutput のテスト
-- [ ] 3.3 ProgressManager.stopUpdates のテスト
-- [ ] 3.4 タイムアウトシナリオのテスト
-- [ ] 3.5 エラーハンドリングのテスト
+- [x] 3.1 ProgressManager.startUpdates のテスト
+- [x] 3.2 ProgressManager.updateOutput のテスト
+- [x] 3.3 ProgressManager.stopUpdates のテスト
+- [x] 3.4 タイムアウトシナリオのテスト
+- [x] 3.5 エラーハンドリングのテスト
 
 **成果物**: `test/utils/progressManager.test.ts`
 
