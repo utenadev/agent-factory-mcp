@@ -1,64 +1,87 @@
-# Refactoring Plan: Generic AI CLI Wrapper Framework
+# 実装計画: Phase 2 完了
 
-## Goal
-Transform `qwencode-mcp-server` from a Qwen-specific tool into a generic framework capable of wrapping various AI CLI tools (e.g., OpenAI, Ollama, Anthropic). The core concept is to drive tool definitions and execution logic via **Metadata**, laying the groundwork for future automated generation from CLI `--help` outputs.
+> Kimi K2.5 開発能力評価用
+> 作成日: 2026-01-31
 
-## Architecture
+## タスク一覧
 
-### 1. Metadata Schema (`src/types/cli-metadata.ts`)
-Defines the capabilities of a CLI tool in a structured format, independent of the specific implementation.
-- **Command Info**: Binary name (e.g., `qwen`), version.
-- **Options/Flags**: Mapping of flags (e.g., `-m`, `--model`) to their types, descriptions, and validation rules.
-- **Arguments**: Positional arguments definition.
+### Task 1: Logger のテスト強化
+**目的**: Logger のカバレッジを向上させ、ログレベルフィルタリングと出力フォーマットを検証
 
-### 2. Provider Abstraction (`src/providers/*`)
-- **`AIProvider` Interface**: The common contract for all AI backends.
-- **`BaseCliProvider`**: An abstract base class that implements common logic:
-    - constructing shell commands based on Metadata and input arguments.
-    - handling execution via `child_process`.
-- **`QwenProvider`**: Concrete implementation for Qwen. Initially, this will return **static metadata** (hand-coded) that replicates the current `ask-qwen` functionality. This proves the metadata-driven approach works before implementing complex help parsers.
+**サブタスク**:
+- [ ] 1.1 Logger 基本機能のテスト（info, warn, error, debug）
+- [ ] 1.2 NO_COLOR 環境変数対応のテスト
+- [ ] 1.3 TERM=dumb 環境変数対応のテスト
+- [ ] 1.4 ログレベルフィルタリングのテスト
+- [ ] 1.5 出力フォーマット検証のテスト
 
-### 3. Dynamic Tool Factory (`src/tools/dynamic-tool-factory.ts`)
-A factory module that converts `AIProvider` instances into MCP `UnifiedTool` definitions.
-- **Metadata -> Zod**: Dynamically generates Zod schemas from the provider's metadata options.
-- **Execution Binding**: Binds the tool's `execute` method to the provider's `execute` method.
+**成果物**: `test/utils/logger.test.ts`
 
-### 4. Configuration & Registry
-- Support for selecting active providers via configuration.
-- The Registry will iterate through active providers and generate tools at runtime.
+---
 
-## Implementation Phases
+### Task 2: カバレッジレポート自動化
+**目的**: CI/CD でカバレッジレポートを自動生成し、成果を可視化
 
-### Phase 1: Foundation (Current Focus)
-Focus on establishing the types and class structure.
-- [ ] Create `src/types/cli-metadata.ts`
-- [ ] Create `src/providers/base-cli.provider.ts`
-- [ ] Create `src/tools/dynamic-tool-factory.ts`
+**サブタスク**:
+- [ ] 2.1 vitest.config.ts のカバレッジ設定確認・更新
+- [ ] 2.2 GitHub Actions ワークフローにカバレッジステップ追加
+- [ ] 2.3 カバレッジレポートの成果物（artifact）保存設定
+- [ ] 2.4 カバレッジバッジ生成（オプション）
 
-### Phase 2: Qwen Migration
-Port the existing Qwen logic to the new structure.
-- [ ] Create `src/providers/qwen.provider.ts` with static metadata matching current features.
-- [ ] Verify that the generated tool matches the behavior of the existing `ask-qwen` tool.
+**成果物**: 更新された `.github/workflows/ci.yml`
 
-### Phase 3: Integration
-Hook everything into the main application flow.
-- [ ] Update `src/tools/registry.ts` to accept dynamic providers.
-- [ ] Update `src/index.ts` to initialize providers.
+---
 
-### Phase 4: Future Automation
-- [ ] Implement `HelpParser` to generate metadata from `--help` output automatically.
+### Task 3: ProgressManager のテスト追加
+**目的**: MCP プログレス通知機能のテストカバレッジ向上
 
-## Directory Structure Changes
+**サブタスク**:
+- [ ] 3.1 ProgressManager.startUpdates のテスト
+- [ ] 3.2 ProgressManager.updateOutput のテスト
+- [ ] 3.3 ProgressManager.stopUpdates のテスト
+- [ ] 3.4 タイムアウトシナリオのテスト
+- [ ] 3.5 エラーハンドリングのテスト
 
-```text
-src/
-├── types/
-│   └── cli-metadata.ts       # [New] Metadata definitions
-├── providers/
-│   ├── base-cli.provider.ts  # [New] Abstract base class
-│   └── qwen.provider.ts      # [New] Qwen implementation
-├── tools/
-│   ├── dynamic-tool.factory.ts # [New] Tool generator
-│   └── registry.ts           # [Update] Support dynamic registration
-└── ...
-```
+**成果物**: `test/utils/progressManager.test.ts`
+
+---
+
+### Task 4: Error Handler のテスト追加
+**目的**: グローバルエラーハンドリングの検証
+
+**サブタスク**:
+- [ ] 4.1 unhandledRejection ハンドラのテスト
+- [ ] 4.2 uncaughtException ハンドラのテスト
+- [ ] 4.3 エラーログ出力の検証
+
+**成果物**: `test/utils/errorHandler.test.ts`
+
+---
+
+### Task 5: セキュリティテストの拡充
+**目的**: 既存のセキュリティ機能の網羅的なテスト
+
+**サブタスク**:
+- [ ] 5.1 ArgumentValidator の追加テストケース
+- [ ] 5.2 AuditLogger のテスト（PIIマスキング、ログローテーション）
+- [ ] 5.3 CommandExecutor のセキュリティ統合テスト
+
+**成果物**: `test/security/` 以下の拡充
+
+---
+
+## 実装順序
+1. Task 1 (Logger) - 基本ユーティリティから
+2. Task 2 (カバレッジ自動化) - フィードバックループ構築
+3. Task 3 (ProgressManager) - 中核機能
+4. Task 4 (Error Handler) - 堅牢性向上
+5. Task 5 (セキュリティ) - 重要度が高いため最後に
+
+## 作業ルーチン（t_wadaスタイルTDD）
+各タスクで以下を繰り返す:
+1. テストを書く（Red）
+2. テストが失敗することを確認
+3. 最小限の実装（Green）
+4. リファクタリング（Refactor）
+5. テスト実行 → パス確認
+6. WorkingLog.md に追記
