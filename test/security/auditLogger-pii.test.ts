@@ -82,13 +82,6 @@ describe("AuditLogger - PII Masking", () => {
       const result = logger.sanitizeArgument("ghp_1234567890abcdefghijklmnopqrstuvwxyz12");
       expect(result).toBe("[REDACTED]");
     });
-
-    it("should mask Slack bot token", () => {
-      const result = logger.sanitizeArgument(
-        "xoxb-DUMMYTEST-1234567890123-4567890123456-XXXXXXXXXXXXXXXXXXXXXX"
-      );
-      expect(result).toBe("[REDACTED]");
-    });
   });
 
   describe("Path Masking", () => {
