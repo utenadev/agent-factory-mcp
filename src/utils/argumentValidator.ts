@@ -1,4 +1,4 @@
-import { SecurityError, SecurityErrors } from "./errors.js";
+import { SecurityErrors } from "./errors.js";
 import type { SecurityConfig } from "./configLoader.js";
 
 /**

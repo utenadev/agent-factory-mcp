@@ -196,7 +196,7 @@ export class HelpParser {
     const optionRegex = options.optionRegex ?? this.getOptionRegexForStrategy(strategy);
 
     let currentSection: "description" | "positionals" | "options" | "commands" = "description";
-    let descriptionBuffer: string[] = [];
+    const descriptionBuffer: string[] = [];
 
     for (const line of lines) {
       const sectionChange = this.detectSectionChange(line);
