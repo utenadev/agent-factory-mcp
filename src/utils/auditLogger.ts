@@ -185,7 +185,7 @@ export class AuditLogger {
   /**
    * Log a successful execution.
    */
-  logSuccess(command: string, args: string[], exitCode: number = 0): void {
+  logSuccess(command: string, args: string[], exitCode = 0): void {
     this.log({
       command,
       args,

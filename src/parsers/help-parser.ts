@@ -196,7 +196,7 @@ export class HelpParser {
     const optionRegex = options.optionRegex ?? this.getOptionRegexForStrategy(strategy);
 
     let currentSection: "description" | "positionals" | "options" | "commands" = "description";
-    let descriptionBuffer: string[] = [];
+    const descriptionBuffer: string[] = [];
 
     for (const line of lines) {
       const sectionChange = this.detectSectionChange(line);
@@ -226,7 +226,6 @@ export class HelpParser {
     switch (strategy) {
       case "go":
         return this.GO_OPTION_REGEX;
-      case "gnu":
       default:
         return this.GNU_OPTION_REGEX;
     }
@@ -272,26 +271,29 @@ export class HelpParser {
         }
         break;
 
-      case "positionals":
+      case "positionals": {
         const positional = this.parsePositional(line, options.positionalRegex);
         if (positional) {
           result.positionals.push(positional);
         }
         break;
+      }
 
-      case "options":
+      case "options": {
         const option = this.parseOption(line, options.optionRegex);
         if (option) {
           result.options.push(option);
         }
         break;
+      }
 
-      case "commands":
+      case "commands": {
         const subcommand = this.parseSubcommand(line);
         if (subcommand) {
           result.subcommands.push(subcommand);
         }
         break;
+      }
     }
   }
 
@@ -640,9 +642,10 @@ export class HelpParser {
     switch (type) {
       case "boolean":
         return trimmed === "true";
-      case "number":
+      case "number": {
         const num = Number.parseFloat(trimmed);
         return Number.isNaN(num) ? trimmed : num;
+      }
       default:
         return trimmed;
     }

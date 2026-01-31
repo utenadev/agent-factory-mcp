@@ -3,13 +3,17 @@ import { existsSync, writeFileSync, unlinkSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 // Mock inquirer before importing the module
-const mockPrompt = vi.fn();
+const mocks = vi.hoisted(() => ({
+  prompt: vi.fn(),
+}));
 
 vi.mock("inquirer", () => ({
   default: {
-    prompt: mockPrompt,
+    prompt: mocks.prompt,
   },
 }));
+
+const { prompt: mockPrompt } = mocks;
 
 // Mock autoDiscovery
 const mockDiscoveredTools = [

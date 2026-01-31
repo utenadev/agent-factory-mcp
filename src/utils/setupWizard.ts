@@ -6,7 +6,6 @@ import { discoverCompatibleTools } from "./autoDiscovery.js";
 import { ConfigLoader } from "./configLoader.js";
 import type { CliToolMetadata } from "../types/cli-metadata.js";
 import type { ToolConfig, ToolsConfig } from "./configLoader.js";
-import { Logger } from "./logger.js";
 
 // ============================================================================
 // Types

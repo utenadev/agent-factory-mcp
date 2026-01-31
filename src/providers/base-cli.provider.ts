@@ -1,11 +1,10 @@
 import type { CliToolMetadata } from "../types/cli-metadata.js";
-import { executeCommand, ExecuteCommandOptions } from "../utils/commandExecutor.js";
+import { executeCommand, type ExecuteCommandOptions } from "../utils/commandExecutor.js";
 import {
   ArgumentValidator,
-  ValidationContext,
+  type ValidationContext,
   validateWithGeminiRequirements,
 } from "../utils/argumentValidator.js";
-import { SecurityError } from "../utils/errors.js";
 
 /**
  * Interface for any AI provider.

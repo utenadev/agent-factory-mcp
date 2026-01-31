@@ -1,6 +1,6 @@
-import { spawn } from "child_process";
+import { spawn } from "node:child_process";
 import { Logger } from "./logger.js";
-import { ArgumentValidator, ValidationContext } from "./argumentValidator.js";
+import { ArgumentValidator, type ValidationContext } from "./argumentValidator.js";
 import { auditLogger } from "./auditLogger.js";
 import { SecurityError } from "./errors.js";
 
