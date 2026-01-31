@@ -46,6 +46,15 @@ describe("systemPrompt support", () => {
   it("should apply systemPrompt to metadata", async () => {
     // Mock isCommandAvailable to always return true
     vi.spyOn(GenericCliProvider as any, "isCommandAvailable").mockResolvedValue(true);
+    
+    // Mock fetchHelpOutput to return dummy help text
+    vi.spyOn(GenericCliProvider as any, "fetchHelpOutput").mockResolvedValue(`
+Usage: qwen [OPTIONS]
+
+Options:
+  -h, --help       Show this message and exit.
+  --version        Show version information.
+    `);
 
     const config = {
       command: "qwen",
